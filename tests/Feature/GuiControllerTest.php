@@ -1,0 +1,167 @@
+<?php
+
+namespace FirewallGui\LaravelFirewallGui\Tests\Feature;
+
+use FirewallGui\LaravelFirewallGui\Facades\Firewall;
+use FirewallGui\LaravelFirewallGui\Models\FirewallGroup;
+use FirewallGui\LaravelFirewallGui\Models\FirewallLog;
+use FirewallGui\LaravelFirewallGui\Models\FirewallRule;
+use FirewallGui\LaravelFirewallGui\Tests\TestCase;
+
+class GuiControllerTest extends TestCase
+{
+    protected function tearDown(): void
+    {
+        Firewall::auth(null);
+        parent::tearDown();
+    }
+
+    public function test_dashboard_renders_successfully(): void
+    {
+        $this->get('/firewall')
+            ->assertOk()
+            ->assertSee('Firewall');
+    }
+
+    public function test_auth_callback_restricts_gui_access(): void
+    {
+        Firewall::auth(fn () => false);
+
+        $this->get('/firewall')->assertStatus(403);
+
+        Firewall::auth(fn () => true);
+
+        $this->get('/firewall')->assertOk();
+    }
+
+    public function test_test_ip_simulator_returns_json_and_redirect(): void
+    {
+        Firewall::block('203.0.113.88', 'Simulator test');
+
+        $this->postJson('/firewall/test-ip', ['ip' => '203.0.113.88'])
+            ->assertOk()
+            ->assertJson([
+                'ip' => '203.0.113.88',
+                'allowed' => false,
+                'action' => 'blocked',
+            ]);
+
+        $this->post('/firewall/test-ip', ['ip' => '203.0.113.88'])
+            ->assertRedirect()
+            ->assertSessionHas('test_ip', '203.0.113.88');
+    }
+
+    public function test_rules_crud_and_bulk_import_and_self_lockout_protection(): void
+    {
+        $this->get('/firewall/rules')->assertOk();
+
+        // Create CIDR whitelist rule
+        $this->post('/firewall/rules', [
+            'value' => '10.10.0.0/16',
+            'type' => 'whitelist',
+            'label' => 'Internal LAN',
+            'is_active' => '1',
+        ])->assertRedirect();
+
+        $rule = FirewallRule::query()->where('value', '10.10.0.0/16')->firstOrFail();
+        $this->assertSame('cidr', $rule->rule_type);
+
+        // Self-lockout protection blocks blacklisting current IP (127.0.0.1)
+        $this->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])
+            ->post('/firewall/rules', [
+                'value' => '127.0.0.1',
+                'type' => 'blacklist',
+                'is_active' => '1',
+            ])
+            ->assertSessionHasErrors('value');
+
+        $this->assertDatabaseMissing('firewall_rules', [
+            'value' => '127.0.0.1',
+            'type' => 'blacklist',
+        ]);
+
+        // Toggle rule
+        $this->patch("/firewall/rules/{$rule->id}/toggle")->assertRedirect();
+        $this->assertFalse($rule->fresh()->is_active);
+
+        // Bulk import
+        $this->post('/firewall/rules/bulk-import', [
+            'entries' => "198.51.100.1\n198.51.100.0/24\n# comment\ninvalid-entry\n192.0.2.1-192.0.2.10",
+            'type' => 'blacklist',
+            'label' => 'Imported',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('firewall_rules', ['value' => '198.51.100.1', 'rule_type' => 'ip']);
+        $this->assertDatabaseHas('firewall_rules', ['value' => '198.51.100.0/24', 'rule_type' => 'cidr']);
+        $this->assertDatabaseHas('firewall_rules', ['value' => '192.0.2.1-192.0.2.10', 'rule_type' => 'range']);
+
+        // Delete rule
+        $this->delete("/firewall/rules/{$rule->id}")->assertRedirect();
+        $this->assertDatabaseMissing('firewall_rules', ['id' => $rule->id]);
+    }
+
+    public function test_groups_crud_and_cascade_type_update(): void
+    {
+        $this->get('/firewall/groups')->assertOk();
+
+        $this->post('/firewall/groups', [
+            'name' => 'Partner APIs',
+            'type' => 'whitelist',
+            'description' => 'Trusted partners',
+            'is_active' => '1',
+            'priority' => 10,
+        ])->assertRedirect();
+
+        $group = FirewallGroup::query()->where('name', 'Partner APIs')->firstOrFail();
+
+        $this->post('/firewall/rules', [
+            'value' => '203.0.113.100',
+            'group_id' => $group->id,
+            'is_active' => '1',
+        ])->assertRedirect();
+
+        $this->get("/firewall/groups/{$group->id}")->assertOk()->assertSee('Partner APIs');
+
+        // Update group type to blacklist -> cascades to its rules
+        $this->put("/firewall/groups/{$group->id}", [
+            'name' => 'Partner APIs',
+            'type' => 'blacklist',
+            'is_active' => '1',
+        ])->assertRedirect();
+
+        $this->assertSame('blacklist', $group->rules()->firstOrFail()->type);
+
+        // Toggle group
+        $this->patch("/firewall/groups/{$group->id}/toggle")->assertRedirect();
+        $this->assertFalse($group->fresh()->is_active);
+
+        // Delete group
+        $this->delete("/firewall/groups/{$group->id}")->assertRedirect('/firewall/groups');
+        $this->assertDatabaseMissing('firewall_groups', ['id' => $group->id]);
+    }
+
+    public function test_logs_index_allow_ip_and_clear(): void
+    {
+        $log = FirewallLog::query()->create([
+            'ip_address' => '203.0.113.200',
+            'method' => 'GET',
+            'path' => '/admin',
+            'action' => 'blocked',
+            'reason' => 'Test block',
+            'created_at' => now(),
+        ]);
+
+        $this->get('/firewall/logs')->assertOk()->assertSee('203.0.113.200');
+
+        $this->post("/firewall/logs/{$log->id}/allow")->assertRedirect();
+
+        $this->assertDatabaseHas('firewall_rules', [
+            'value' => '203.0.113.200',
+            'type' => 'whitelist',
+            'is_active' => true,
+        ]);
+
+        $this->delete('/firewall/logs')->assertRedirect();
+        $this->assertDatabaseCount('firewall_logs', 0);
+    }
+}
