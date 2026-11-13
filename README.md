@@ -28,7 +28,7 @@ A complete Laravel 11+ / PHP 8.2+ firewall package with a built-in **Blade GUI**
 ## Installation
 
 ```bash
-composer require salvatore/laravel-firewall-gui
+composer require salvatorecervone/laravel-firewall-gui
 ```
 
 Run the migrations:
