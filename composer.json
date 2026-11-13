@@ -1,5 +1,5 @@
 {
-    "name": "salvatore/laravel-firewall-gui",
+    "name": "salvatorecervone/laravel-firewall-gui",
     "description": "A Laravel firewall package with a built-in Blade GUI to manage IP, CIDR, range, and group-based whitelists and blacklists.",
     "keywords": [
         "laravel",
