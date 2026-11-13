@@ -109,7 +109,7 @@ return [
         'enabled' => env('FIREWALL_GUI_PANEL_ENABLED', true),
         'prefix' => env('FIREWALL_GUI_PREFIX', 'firewall'),
         'middleware' => ['web'],
-        'gate' => null, // Optional Gate ability name, e.g. 'manage-firewall'
+        'gate' => env('FIREWALL_GUI_GATE', null), // Optional Gate ability name, e.g. 'manage-firewall'
         'protect_with_firewall' => false,
         'prevent_self_lockout' => true,
         'per_page' => 20,

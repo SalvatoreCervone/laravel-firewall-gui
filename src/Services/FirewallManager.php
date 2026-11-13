@@ -12,6 +12,7 @@ use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Gate;
 
 class FirewallManager
 {
@@ -34,7 +35,11 @@ class FirewallManager
 
         $gate = config('firewall-gui.gui.gate');
         if (is_string($gate) && $gate !== '') {
-            return $request->user()?->can($gate) ?? false;
+            return Gate::forUser($request->user())->allows($gate);
+        }
+
+        if (Gate::has('manage-firewall')) {
+            return Gate::forUser($request->user())->allows('manage-firewall');
         }
 
         return true;

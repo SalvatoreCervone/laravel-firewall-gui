@@ -7,6 +7,7 @@ use FirewallGui\LaravelFirewallGui\Models\FirewallGroup;
 use FirewallGui\LaravelFirewallGui\Models\FirewallLog;
 use FirewallGui\LaravelFirewallGui\Models\FirewallRule;
 use FirewallGui\LaravelFirewallGui\Tests\TestCase;
+use Illuminate\Support\Facades\Gate;
 
 class GuiControllerTest extends TestCase
 {
@@ -31,6 +32,28 @@ class GuiControllerTest extends TestCase
 
         Firewall::auth(fn () => true);
 
+        $this->get('/firewall')->assertOk();
+    }
+
+    public function test_gate_config_restricts_gui_access(): void
+    {
+        config()->set('firewall-gui.gui.gate', 'manage-firewall');
+
+        Gate::define('manage-firewall', fn ($user = null) => false);
+        $this->get('/firewall')->assertStatus(403);
+
+        Gate::define('manage-firewall', fn ($user = null) => true);
+        $this->get('/firewall')->assertOk();
+    }
+
+    public function test_manage_firewall_gate_is_enforced_automatically_when_defined(): void
+    {
+        config()->set('firewall-gui.gui.gate', null);
+
+        Gate::define('manage-firewall', fn ($user = null) => false);
+        $this->get('/firewall')->assertStatus(403);
+
+        Gate::define('manage-firewall', fn ($user = null) => true);
         $this->get('/firewall')->assertOk();
     }
 
