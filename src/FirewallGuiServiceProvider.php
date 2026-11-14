@@ -6,10 +6,12 @@ use FirewallGui\LaravelFirewallGui\Console\Commands\AllowCommand;
 use FirewallGui\LaravelFirewallGui\Console\Commands\BlockCommand;
 use FirewallGui\LaravelFirewallGui\Console\Commands\CheckCommand;
 use FirewallGui\LaravelFirewallGui\Console\Commands\ClearCacheCommand;
+use FirewallGui\LaravelFirewallGui\Console\Commands\NotifyCommand;
 use FirewallGui\LaravelFirewallGui\Console\Commands\UnblockCommand;
 use FirewallGui\LaravelFirewallGui\Http\Middleware\FirewallMiddleware;
 use FirewallGui\LaravelFirewallGui\Models\FirewallGroup;
 use FirewallGui\LaravelFirewallGui\Models\FirewallRule;
+use FirewallGui\LaravelFirewallGui\Models\FirewallSetting;
 use FirewallGui\LaravelFirewallGui\Services\FirewallManager;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
@@ -50,6 +52,7 @@ class FirewallGuiServiceProvider extends ServiceProvider
             $this->commands([
                 AllowCommand::class,
                 BlockCommand::class,
+                NotifyCommand::class,
                 UnblockCommand::class,
                 CheckCommand::class,
                 ClearCacheCommand::class,
@@ -64,5 +67,7 @@ class FirewallGuiServiceProvider extends ServiceProvider
         FirewallRule::deleted($flushCache);
         FirewallGroup::saved($flushCache);
         FirewallGroup::deleted($flushCache);
+        FirewallSetting::saved($flushCache);
+        FirewallSetting::deleted($flushCache);
     }
 }

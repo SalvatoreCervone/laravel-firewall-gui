@@ -10,8 +10,9 @@ use Illuminate\Support\Facades\Facade;
 
 /**
  * @method static FirewallDecision check(string $ip, ?string $overrideMode = null)
- * @method static FirewallRule allow(string $value, ?string $label = null, ?int $groupId = null, ?Carbon $expiresAt = null, ?string $createdBy = null)
- * @method static FirewallRule block(string $value, ?string $label = null, ?int $groupId = null, ?Carbon $expiresAt = null, ?string $createdBy = null)
+ * @method static FirewallRule allow(string $value, ?string $label = null, ?int $groupId = null, ?Carbon $expiresAt = null, ?string $createdBy = null, bool $notifyOnHit = false)
+ * @method static FirewallRule block(string $value, ?string $label = null, ?int $groupId = null, ?Carbon $expiresAt = null, ?string $createdBy = null, bool $notifyOnHit = false)
+ * @method static FirewallRule notify(string $value, ?string $label = null, ?int $groupId = null, ?Carbon $expiresAt = null, ?string $createdBy = null)
  * @method static int unblock(string $value)
  * @method static void clearCache()
  * @method static bool isEnabled()

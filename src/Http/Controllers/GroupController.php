@@ -39,9 +39,10 @@ class GroupController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:firewall_groups,name'],
-            'type' => ['required', 'in:whitelist,blacklist'],
+            'type' => ['required', 'in:whitelist,blacklist,notify'],
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
+            'notify_on_hit' => ['nullable', 'boolean'],
             'priority' => ['nullable', 'integer'],
         ]);
 
@@ -51,6 +52,7 @@ class GroupController extends Controller
             'type' => $validated['type'],
             'description' => $validated['description'] ?? null,
             'is_active' => $request->boolean('is_active', true),
+            'notify_on_hit' => $validated['type'] === FirewallRule::TYPE_NOTIFY || $request->boolean('notify_on_hit', false),
             'priority' => (int) ($validated['priority'] ?? 0),
         ]);
 
@@ -80,13 +82,15 @@ class GroupController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('firewall_groups', 'name')->ignore($group->id)],
-            'type' => ['required', 'in:whitelist,blacklist'],
+            'type' => ['required', 'in:whitelist,blacklist,notify'],
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
+            'notify_on_hit' => ['nullable', 'boolean'],
             'priority' => ['nullable', 'integer'],
         ]);
 
         $isActive = $request->has('is_active') ? $request->boolean('is_active') : $group->is_active;
+        $notifyOnHit = $validated['type'] === FirewallRule::TYPE_NOTIFY || $request->boolean('notify_on_hit', $group->notify_on_hit);
 
         if ($isActive && $validated['type'] === FirewallRule::TYPE_BLACKLIST && $this->groupContainsCurrentIp($request, $group)) {
             return redirect()
@@ -103,6 +107,7 @@ class GroupController extends Controller
             'type' => $validated['type'],
             'description' => $validated['description'] ?? null,
             'is_active' => $isActive,
+            'notify_on_hit' => $notifyOnHit,
             'priority' => (int) ($validated['priority'] ?? 0),
         ]);
 

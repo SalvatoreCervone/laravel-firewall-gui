@@ -91,6 +91,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Access Email Notifications (Notify Rules)
+    |--------------------------------------------------------------------------
+    |
+    | Rules/groups of type "notify" allow the request and queue an email on the
+    | first access of the day from that IP address.
+    |
+    */
+    'notifications' => [
+        'enabled' => env('FIREWALL_GUI_NOTIFY_ENABLED', true),
+        'to' => env('FIREWALL_GUI_NOTIFY_TO', ''), // Comma-separated emails or array
+        'queue' => env('FIREWALL_GUI_NOTIFY_QUEUE', null), // Optional queue name
+        'log_access' => true,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | HTTP Response on Block
     |--------------------------------------------------------------------------
     */

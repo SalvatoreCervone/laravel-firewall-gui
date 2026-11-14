@@ -25,11 +25,13 @@ class FirewallGroup extends Model
         'type',
         'description',
         'is_active',
+        'notify_on_hit',
         'priority',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'notify_on_hit' => 'boolean',
         'priority' => 'integer',
     ];
 

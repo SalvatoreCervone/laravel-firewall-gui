@@ -3,11 +3,13 @@
 namespace FirewallGui\LaravelFirewallGui\Tests\Feature;
 
 use FirewallGui\LaravelFirewallGui\Facades\Firewall;
+use FirewallGui\LaravelFirewallGui\Mail\FirewallAccessNotification;
 use FirewallGui\LaravelFirewallGui\Models\FirewallGroup;
 use FirewallGui\LaravelFirewallGui\Models\FirewallLog;
 use FirewallGui\LaravelFirewallGui\Models\FirewallRule;
 use FirewallGui\LaravelFirewallGui\Tests\TestCase;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 
 class GuiControllerTest extends TestCase
 {
@@ -186,5 +188,72 @@ class GuiControllerTest extends TestCase
 
         $this->delete('/firewall/logs')->assertRedirect();
         $this->assertDatabaseCount('firewall_logs', 0);
+    }
+
+    public function test_can_create_notify_rule_and_group_from_gui(): void
+    {
+        $this->post('/firewall/groups', [
+            'name' => 'External Consultants',
+            'type' => 'notify',
+            'is_active' => '1',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('firewall_groups', [
+            'name' => 'External Consultants',
+            'type' => 'notify',
+        ]);
+
+        $this->post('/firewall/rules', [
+            'value' => '198.51.100.0/24',
+            'type' => 'notify',
+            'label' => 'Watch subnet',
+            'is_active' => '1',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('firewall_rules', [
+            'value' => '198.51.100.0/24',
+            'type' => 'notify',
+        ]);
+
+        // Blacklist + Notify from GUI
+        $this->post('/firewall/rules', [
+            'value' => '198.51.100.99',
+            'type' => 'blacklist',
+            'notify_on_hit' => '1',
+            'is_active' => '1',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('firewall_rules', [
+            'value' => '198.51.100.99',
+            'type' => 'blacklist',
+            'notify_on_hit' => true,
+        ]);
+    }
+
+    public function test_settings_page_saves_email_config_and_queues_test_email(): void
+    {
+        Mail::fake();
+
+        $this->get('/firewall/settings')->assertOk()->assertSee('Email Notification Settings');
+
+        $this->put('/firewall/settings', [
+            'notifications_enabled' => '1',
+            'notifications_to' => 'soc@example.com, ops@example.com',
+            'notifications_queue' => 'alerts',
+            'notifications_log_access' => '1',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('firewall_settings', [
+            'key' => 'notifications.to',
+            'value' => 'soc@example.com, ops@example.com',
+        ]);
+
+        $this->post('/firewall/settings/test-email', [
+            'test_email' => 'tester@example.com',
+        ])->assertRedirect();
+
+        Mail::assertQueued(FirewallAccessNotification::class, function (FirewallAccessNotification $mail): bool {
+            return $mail->hasTo('tester@example.com') && $mail->queue === 'alerts';
+        });
     }
 }

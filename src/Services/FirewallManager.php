@@ -3,9 +3,11 @@
 namespace FirewallGui\LaravelFirewallGui\Services;
 
 use Closure;
+use FirewallGui\LaravelFirewallGui\Mail\FirewallAccessNotification;
 use FirewallGui\LaravelFirewallGui\Models\FirewallGroup;
 use FirewallGui\LaravelFirewallGui\Models\FirewallLog;
 use FirewallGui\LaravelFirewallGui\Models\FirewallRule;
+use FirewallGui\LaravelFirewallGui\Models\FirewallSetting;
 use FirewallGui\LaravelFirewallGui\Support\FirewallDecision;
 use FirewallGui\LaravelFirewallGui\Support\IpMatcher;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
@@ -13,6 +15,7 @@ use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 
 class FirewallManager
 {
@@ -88,18 +91,25 @@ class FirewallManager
 
         $whitelistMatch = $this->findMatchingRule($ip, $payload['whitelist'] ?? []);
         $blacklistMatch = $this->findMatchingRule($ip, $payload['blacklist'] ?? []);
+        $notifyMatch = $this->findMatchingRule($ip, $payload['notify'] ?? []);
 
         if ($whitelistOverrides && $whitelistMatch !== null) {
+            $activeNotify = $notifyMatch ?? (! empty($whitelistMatch['notify_on_hit']) ? $whitelistMatch : null);
+
             return new FirewallDecision(
                 allowed: true,
                 action: FirewallDecision::ACTION_ALLOWED,
                 reason: $this->formatReason('Allowed by whitelist rule', $whitelistMatch),
                 matchedRule: $whitelistMatch,
                 matchedGroup: $whitelistMatch['group'] ?? null,
+                notifyRule: $activeNotify,
+                notifyGroup: $activeNotify['group'] ?? null,
             );
         }
 
         if ($blacklistMatch !== null) {
+            $blockNotify = ! empty($blacklistMatch['notify_on_hit']) ? $blacklistMatch : null;
+
             return new FirewallDecision(
                 allowed: false,
                 action: $this->isDryRun()
@@ -108,17 +118,35 @@ class FirewallManager
                 reason: $this->formatReason('Blocked by blacklist rule', $blacklistMatch),
                 matchedRule: $blacklistMatch,
                 matchedGroup: $blacklistMatch['group'] ?? null,
+                notifyRule: $blockNotify,
+                notifyGroup: $blockNotify['group'] ?? null,
             );
         }
 
         if ($mode === 'whitelist_only') {
             if ($whitelistMatch !== null) {
+                $activeNotify = $notifyMatch ?? (! empty($whitelistMatch['notify_on_hit']) ? $whitelistMatch : null);
+
                 return new FirewallDecision(
                     allowed: true,
                     action: FirewallDecision::ACTION_ALLOWED,
                     reason: $this->formatReason('Allowed by whitelist rule', $whitelistMatch),
                     matchedRule: $whitelistMatch,
                     matchedGroup: $whitelistMatch['group'] ?? null,
+                    notifyRule: $activeNotify,
+                    notifyGroup: $activeNotify['group'] ?? null,
+                );
+            }
+
+            if ($notifyMatch !== null) {
+                return new FirewallDecision(
+                    allowed: true,
+                    action: FirewallDecision::ACTION_ALLOWED,
+                    reason: $this->formatReason('Allowed by notify rule', $notifyMatch),
+                    matchedRule: $notifyMatch,
+                    matchedGroup: $notifyMatch['group'] ?? null,
+                    notifyRule: $notifyMatch,
+                    notifyGroup: $notifyMatch['group'] ?? null,
                 );
             }
 
@@ -134,7 +162,13 @@ class FirewallManager
         return new FirewallDecision(
             allowed: true,
             action: FirewallDecision::ACTION_ALLOWED,
-            reason: 'No blocking rules matched.',
+            reason: $notifyMatch !== null
+                ? $this->formatReason('Allowed with access notification', $notifyMatch)
+                : 'No blocking rules matched.',
+            matchedRule: $notifyMatch,
+            matchedGroup: $notifyMatch['group'] ?? null,
+            notifyRule: $notifyMatch,
+            notifyGroup: $notifyMatch['group'] ?? null,
         );
     }
 
@@ -144,8 +178,9 @@ class FirewallManager
         ?int $groupId = null,
         ?Carbon $expiresAt = null,
         ?string $createdBy = null,
+        bool $notifyOnHit = false,
     ): FirewallRule {
-        return $this->createRule(FirewallRule::TYPE_WHITELIST, $value, $label, $groupId, $expiresAt, $createdBy);
+        return $this->createRule(FirewallRule::TYPE_WHITELIST, $value, $label, $groupId, $expiresAt, $createdBy, $notifyOnHit);
     }
 
     public function block(
@@ -154,8 +189,141 @@ class FirewallManager
         ?int $groupId = null,
         ?Carbon $expiresAt = null,
         ?string $createdBy = null,
+        bool $notifyOnHit = false,
     ): FirewallRule {
-        return $this->createRule(FirewallRule::TYPE_BLACKLIST, $value, $label, $groupId, $expiresAt, $createdBy);
+        return $this->createRule(FirewallRule::TYPE_BLACKLIST, $value, $label, $groupId, $expiresAt, $createdBy, $notifyOnHit);
+    }
+
+    public function notify(
+        string $value,
+        ?string $label = null,
+        ?int $groupId = null,
+        ?Carbon $expiresAt = null,
+        ?string $createdBy = null,
+    ): FirewallRule {
+        return $this->createRule(FirewallRule::TYPE_NOTIFY, $value, $label, $groupId, $expiresAt, $createdBy, true);
+    }
+
+    public function dispatchDailyNotificationIfNeeded(Request $request, FirewallDecision $decision): bool
+    {
+        $settings = $this->getNotificationSettings();
+
+        if (! $decision->shouldNotify() || ! $settings['enabled']) {
+            return false;
+        }
+
+        $recipients = $this->parseNotificationRecipients($settings['to']);
+        if ($recipients === []) {
+            return false;
+        }
+
+        $ip = (string) $request->ip();
+        $ruleId = (int) ($decision->notifyRule['id'] ?? 0);
+        $dailyKey = sprintf('firewall_gui.notified.%s.%s', now()->format('Y-m-d'), md5($ip.'|'.$ruleId));
+
+        if (! $this->cacheStore()->add($dailyKey, true, now()->endOfDay())) {
+            return false;
+        }
+
+        $mailable = new FirewallAccessNotification(
+            ipAddress: $ip,
+            method: $request->method(),
+            path: '/'.ltrim($request->path(), '/'),
+            userAgent: $request->userAgent(),
+            accessedAt: now()->toDateTimeString(),
+            matchedRule: $decision->notifyRule,
+            matchedGroup: $decision->notifyGroup,
+            decisionAction: $decision->action,
+        );
+
+        $queue = $settings['queue'];
+        if (is_string($queue) && $queue !== '') {
+            $mailable->onQueue($queue);
+        }
+
+        Mail::to($recipients)->queue($mailable);
+
+        if ($decision->allowed && $settings['log_access'] && (bool) config('firewall-gui.logging.enabled', true)) {
+            FirewallLog::query()->create([
+                'ip_address' => $ip,
+                'method' => $request->method(),
+                'path' => '/'.ltrim($request->path(), '/'),
+                'user_agent' => $request->userAgent(),
+                'action' => FirewallDecision::ACTION_NOTIFIED,
+                'matched_rule_id' => $decision->notifyRule['id'] ?? null,
+                'matched_group_id' => $decision->notifyGroup['id'] ?? null,
+                'reason' => $this->formatReason('First daily access notification queued', $decision->notifyRule),
+                'created_at' => now(),
+            ]);
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array{enabled: bool, to: string, queue: ?string, log_access: bool}
+     */
+    public function getNotificationSettings(): array
+    {
+        $ttl = (int) config('firewall-gui.cache.ttl', 86400);
+
+        return $this->cacheStore()->remember($this->settingsCacheKey(), $ttl, function (): array {
+            $defaults = [
+                'enabled' => (bool) config('firewall-gui.notifications.enabled', true),
+                'to' => is_array($to = config('firewall-gui.notifications.to', ''))
+                    ? implode(', ', $to)
+                    : (string) $to,
+                'queue' => config('firewall-gui.notifications.queue') ?: null,
+                'log_access' => (bool) config('firewall-gui.notifications.log_access', true),
+            ];
+
+            try {
+                $rows = FirewallSetting::query()
+                    ->whereIn('key', [
+                        'notifications.enabled',
+                        'notifications.to',
+                        'notifications.queue',
+                        'notifications.log_access',
+                    ])
+                    ->pluck('value', 'key');
+            } catch (\Throwable) {
+                return $defaults;
+            }
+
+            if ($rows->has('notifications.enabled')) {
+                $defaults['enabled'] = $rows->get('notifications.enabled') === '1';
+            }
+            if ($rows->has('notifications.to')) {
+                $defaults['to'] = (string) $rows->get('notifications.to');
+            }
+            if ($rows->has('notifications.queue')) {
+                $defaults['queue'] = $rows->get('notifications.queue') ?: null;
+            }
+            if ($rows->has('notifications.log_access')) {
+                $defaults['log_access'] = $rows->get('notifications.log_access') === '1';
+            }
+
+            return $defaults;
+        });
+    }
+
+    /**
+     * @param  array<int, string>|string|null  $raw
+     * @return array<int, string>
+     */
+    protected function parseNotificationRecipients(array|string|null $raw = null): array
+    {
+        $raw ??= config('firewall-gui.notifications.to', []);
+
+        if (is_string($raw)) {
+            $raw = explode(',', $raw);
+        }
+
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map('trim', $raw), fn (string $email): bool => $email !== ''));
     }
 
     public function unblock(string $value): int
@@ -203,6 +371,7 @@ class FirewallManager
     public function clearCache(): void
     {
         $this->cacheStore()->forget($this->cacheKey());
+        $this->cacheStore()->forget($this->settingsCacheKey());
     }
 
     /**
@@ -228,6 +397,7 @@ class FirewallManager
             $payload = [
                 FirewallRule::TYPE_WHITELIST => [],
                 FirewallRule::TYPE_BLACKLIST => [],
+                FirewallRule::TYPE_NOTIFY => [],
             ];
 
             foreach ($rules as $rule) {
@@ -239,6 +409,9 @@ class FirewallManager
                     'rule_type' => $rule->rule_type,
                     'value' => $rule->value,
                     'label' => $rule->label,
+                    'notify_on_hit' => $effectiveType === FirewallRule::TYPE_NOTIFY
+                        || $rule->notify_on_hit
+                        || ($rule->group?->notify_on_hit ?? false),
                     'expires_at' => $rule->expires_at?->toIso8601String(),
                     'group' => $rule->group ? [
                         'id' => $rule->group->id,
@@ -260,12 +433,14 @@ class FirewallManager
         ?int $groupId,
         ?Carbon $expiresAt,
         ?string $createdBy,
+        bool $notifyOnHit = false,
     ): FirewallRule {
         [$ruleType, $normalized] = IpMatcher::normalizeOrFail($value);
 
         if ($groupId !== null) {
             $group = FirewallGroup::query()->findOrFail($groupId);
             $type = $group->type;
+            $notifyOnHit = $notifyOnHit || $group->notify_on_hit;
         }
 
         $rule = FirewallRule::query()->create([
@@ -275,6 +450,7 @@ class FirewallManager
             'value' => $normalized,
             'label' => $label,
             'is_active' => true,
+            'notify_on_hit' => $type === FirewallRule::TYPE_NOTIFY ? true : $notifyOnHit,
             'expires_at' => $expiresAt,
             'created_by' => $createdBy,
         ]);
@@ -334,5 +510,10 @@ class FirewallManager
     protected function cacheKey(): string
     {
         return (string) config('firewall-gui.cache.key', 'firewall_gui.rules_payload');
+    }
+
+    protected function settingsCacheKey(): string
+    {
+        return $this->cacheKey().'.settings';
     }
 }

@@ -28,6 +28,7 @@
                         <option value="">All Actions</option>
                         <option value="blocked" {{ ($filters['action'] ?? '') === 'blocked' ? 'selected' : '' }}>Blocked</option>
                         <option value="dry_run_blocked" {{ ($filters['action'] ?? '') === 'dry_run_blocked' ? 'selected' : '' }}>Dry-Run Blocked</option>
+                        <option value="notified" {{ ($filters['action'] ?? '') === 'notified' ? 'selected' : '' }}>Notified</option>
                     </select>
                 </div>
 
@@ -87,6 +88,8 @@
                                 <td>
                                     @if ($log->action === 'dry_run_blocked')
                                         <span class="badge badge-amber">Dry-Run Blocked</span>
+                                    @elseif ($log->action === 'notified')
+                                        <span class="badge badge-blue">Notified</span>
                                     @else
                                         <span class="badge badge-red">Blocked</span>
                                     @endif

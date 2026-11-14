@@ -29,6 +29,7 @@
                     <select id="group-type" name="type" required>
                         <option value="blacklist" {{ old('type', 'blacklist') === 'blacklist' ? 'selected' : '' }}>Blacklist</option>
                         <option value="whitelist" {{ old('type') === 'whitelist' ? 'selected' : '' }}>Whitelist</option>
+                        <option value="notify" {{ old('type') === 'notify' ? 'selected' : '' }}>Notify (Alert Only)</option>
                     </select>
                 </div>
 
@@ -54,6 +55,13 @@
                     <label class="checkbox-label">
                         <input type="checkbox" name="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }}>
                         <span>Active immediately</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="notify_on_hit" value="1" {{ old('notify_on_hit', false) ? 'checked' : '' }}>
+                        <span>Email alert (1st hit/day)</span>
                     </label>
                 </div>
 
@@ -103,8 +111,13 @@
                                 <td>
                                     @if ($group->type === 'whitelist')
                                         <span class="badge badge-green">Whitelist</span>
+                                    @elseif ($group->type === 'notify')
+                                        <span class="badge badge-blue">Notify Only</span>
                                     @else
                                         <span class="badge badge-red">Blacklist</span>
+                                    @endif
+                                    @if ($group->type !== 'notify' && $group->notify_on_hit)
+                                        <span class="badge badge-blue" style="margin-left: 0.25rem;">+ Notify</span>
                                     @endif
                                 </td>
                                 <td>

@@ -29,6 +29,10 @@ class FirewallMiddleware
         if ($decision->isBlocked()) {
             $this->firewall->logDecision($request, $decision);
 
+            if ($decision->shouldNotify()) {
+                $this->firewall->dispatchDailyNotificationIfNeeded($request, $decision);
+            }
+
             if ($this->firewall->isDryRun()) {
                 return $next($request);
             }
@@ -54,6 +58,10 @@ class FirewallMiddleware
             }
 
             abort($status, $message);
+        }
+
+        if ($decision->shouldNotify()) {
+            $this->firewall->dispatchDailyNotificationIfNeeded($request, $decision);
         }
 
         return $next($request);

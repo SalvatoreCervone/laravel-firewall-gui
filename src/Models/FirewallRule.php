@@ -23,6 +23,7 @@ class FirewallRule extends Model
 {
     public const TYPE_WHITELIST = 'whitelist';
     public const TYPE_BLACKLIST = 'blacklist';
+    public const TYPE_NOTIFY = 'notify';
 
     protected $table = 'firewall_rules';
 
@@ -33,6 +34,7 @@ class FirewallRule extends Model
         'value',
         'label',
         'is_active',
+        'notify_on_hit',
         'expires_at',
         'created_by',
     ];
@@ -40,6 +42,7 @@ class FirewallRule extends Model
     protected $casts = [
         'group_id' => 'integer',
         'is_active' => 'boolean',
+        'notify_on_hit' => 'boolean',
         'expires_at' => 'datetime',
     ];
 

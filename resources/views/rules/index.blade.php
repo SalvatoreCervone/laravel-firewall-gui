@@ -27,10 +27,11 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="rule-type">Type</label>
+                    <label for="rule-type">Action / Type</label>
                     <select id="rule-type" name="type" required>
-                        <option value="blacklist" {{ old('type', 'blacklist') === 'blacklist' ? 'selected' : '' }}>Blacklist</option>
-                        <option value="whitelist" {{ old('type') === 'whitelist' ? 'selected' : '' }}>Whitelist</option>
+                        <option value="blacklist" {{ old('type', 'blacklist') === 'blacklist' ? 'selected' : '' }}>Blacklist (Block)</option>
+                        <option value="whitelist" {{ old('type') === 'whitelist' ? 'selected' : '' }}>Whitelist (Allow)</option>
+                        <option value="notify" {{ old('type') === 'notify' ? 'selected' : '' }}>Notify Only (Allow &amp; Email)</option>
                     </select>
                 </div>
 
@@ -71,6 +72,13 @@
                 </div>
 
                 <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="notify_on_hit" value="1" {{ old('notify_on_hit', false) ? 'checked' : '' }}>
+                        <span>Email alert (1st hit/day)</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
                     <button type="submit" class="btn btn-primary">Add Rule</button>
                 </div>
             </form>
@@ -97,6 +105,7 @@
                     <select id="bulk-type" name="type" required>
                         <option value="blacklist" {{ old('type', 'blacklist') === 'blacklist' ? 'selected' : '' }}>Blacklist</option>
                         <option value="whitelist" {{ old('type') === 'whitelist' ? 'selected' : '' }}>Whitelist</option>
+                        <option value="notify" {{ old('type') === 'notify' ? 'selected' : '' }}>Notify (Alert Only)</option>
                     </select>
                 </div>
 
@@ -119,6 +128,13 @@
                            name="label"
                            value="{{ old('label') }}"
                            placeholder="e.g. Imported Blocklist">
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="notify_on_hit" value="1" {{ old('notify_on_hit', false) ? 'checked' : '' }}>
+                        <span>Email alert (1st hit/day)</span>
+                    </label>
                 </div>
 
                 <div class="form-group">
@@ -153,6 +169,7 @@
                         <option value="">All Types</option>
                         <option value="whitelist" {{ ($filters['type'] ?? '') === 'whitelist' ? 'selected' : '' }}>Whitelist</option>
                         <option value="blacklist" {{ ($filters['type'] ?? '') === 'blacklist' ? 'selected' : '' }}>Blacklist</option>
+                        <option value="notify" {{ ($filters['type'] ?? '') === 'notify' ? 'selected' : '' }}>Notify</option>
                     </select>
                 </div>
 
@@ -224,8 +241,13 @@
                                 <td>
                                     @if ($rule->type === 'whitelist')
                                         <span class="badge badge-green">Whitelist</span>
+                                    @elseif ($rule->type === 'notify')
+                                        <span class="badge badge-blue">Notify Only</span>
                                     @else
                                         <span class="badge badge-red">Blacklist</span>
+                                    @endif
+                                    @if ($rule->type !== 'notify' && ($rule->notify_on_hit || ($rule->group && $rule->group->notify_on_hit)))
+                                        <span class="badge badge-blue" style="margin-left: 0.25rem;">+ Notify</span>
                                     @endif
                                 </td>
                                 <td>

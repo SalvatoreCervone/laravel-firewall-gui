@@ -3,8 +3,10 @@
 namespace FirewallGui\LaravelFirewallGui\Tests\Feature;
 
 use FirewallGui\LaravelFirewallGui\Facades\Firewall;
+use FirewallGui\LaravelFirewallGui\Mail\FirewallAccessNotification;
 use FirewallGui\LaravelFirewallGui\Models\FirewallLog;
 use FirewallGui\LaravelFirewallGui\Tests\TestCase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 
 class FirewallMiddlewareTest extends TestCase
@@ -68,5 +70,62 @@ class FirewallMiddlewareTest extends TestCase
         $this->assertNotNull($log);
         $this->assertSame('dry_run_blocked', $log->action);
         $this->assertSame('203.0.113.20', $log->ip_address);
+    }
+
+    public function test_notify_rule_allows_access_and_queues_email_once_per_day(): void
+    {
+        Mail::fake();
+
+        config()->set('firewall-gui.mode', 'whitelist_only');
+        config()->set('firewall-gui.notifications.to', 'security@example.com, admin@example.com');
+
+        Firewall::notify('198.51.100.0/24', 'Partner subnet');
+
+        // First access of the day -> allowed and queues email
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.42'])
+            ->get('/protected-endpoint')
+            ->assertOk()
+            ->assertSee('OK');
+
+        // Second access same day from same IP -> still allowed, no second email
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.42'])
+            ->get('/protected-endpoint')
+            ->assertOk();
+
+        Mail::assertQueued(FirewallAccessNotification::class, 1);
+        Mail::assertQueued(FirewallAccessNotification::class, function (FirewallAccessNotification $mail): bool {
+            return $mail->hasTo('security@example.com')
+                && $mail->hasTo('admin@example.com')
+                && $mail->ipAddress === '198.51.100.42';
+        });
+
+        $this->assertDatabaseHas('firewall_logs', [
+            'ip_address' => '198.51.100.42',
+            'action' => 'notified',
+        ]);
+        $this->assertSame(1, FirewallLog::query()->where('action', 'notified')->count());
+    }
+
+    public function test_blacklist_with_notify_on_hit_blocks_and_queues_email_once_per_day(): void
+    {
+        Mail::fake();
+
+        config()->set('firewall-gui.notifications.to', 'security@example.com');
+
+        Firewall::block('203.0.113.55', 'Attacker IP', notifyOnHit: true);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.55'])
+            ->getJson('/protected-endpoint')
+            ->assertStatus(403);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.55'])
+            ->getJson('/protected-endpoint')
+            ->assertStatus(403);
+
+        Mail::assertQueued(FirewallAccessNotification::class, 1);
+        Mail::assertQueued(FirewallAccessNotification::class, function (FirewallAccessNotification $mail): bool {
+            return $mail->decisionAction === 'blocked'
+                && $mail->ipAddress === '203.0.113.55';
+        });
     }
 }

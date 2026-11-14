@@ -45,5 +45,15 @@ class ArtisanCommandsTest extends TestCase
 
         $this->artisan('firewall:clear-cache')
             ->assertSuccessful();
+
+        $this->artisan('firewall:notify', [
+            'value' => '198.51.100.10',
+            '--label' => 'Consultant',
+        ])->assertSuccessful();
+
+        $this->assertDatabaseHas('firewall_rules', [
+            'value' => '198.51.100.10',
+            'type' => 'notify',
+        ]);
     }
 }

@@ -9,6 +9,8 @@
 
             @if ($group->type === 'whitelist')
                 <span class="badge badge-green">Whitelist</span>
+            @elseif ($group->type === 'notify')
+                <span class="badge badge-blue">Notify</span>
             @else
                 <span class="badge badge-red">Blacklist</span>
             @endif
@@ -51,6 +53,7 @@
                     <select id="edit-group-type" name="type" required>
                         <option value="blacklist" {{ old('type', $group->type) === 'blacklist' ? 'selected' : '' }}>Blacklist</option>
                         <option value="whitelist" {{ old('type', $group->type) === 'whitelist' ? 'selected' : '' }}>Whitelist</option>
+                        <option value="notify" {{ old('type', $group->type) === 'notify' ? 'selected' : '' }}>Notify (Alert Only)</option>
                     </select>
                 </div>
 
@@ -75,6 +78,13 @@
                     <label class="checkbox-label">
                         <input type="checkbox" name="is_active" value="1" {{ old('is_active', $group->is_active) ? 'checked' : '' }}>
                         <span>Active</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="notify_on_hit" value="1" {{ old('notify_on_hit', $group->notify_on_hit) ? 'checked' : '' }}>
+                        <span>Email alert (1st hit/day)</span>
                     </label>
                 </div>
 
@@ -131,6 +141,13 @@
                     <label class="checkbox-label">
                         <input type="checkbox" name="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }}>
                         <span>Active immediately</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="notify_on_hit" value="1" {{ old('notify_on_hit', $group->notify_on_hit) ? 'checked' : '' }}>
+                        <span>Email alert (1st hit/day)</span>
                     </label>
                 </div>
 
@@ -215,6 +232,9 @@
                                 </td>
                                 <td>
                                     <span class="badge badge-slate">{{ strtoupper($rule->rule_type) }}</span>
+                                    @if ($rule->notify_on_hit || $group->notify_on_hit)
+                                        <span class="badge badge-blue" style="margin-left: 0.25rem;">Notify</span>
+                                    @endif
                                 </td>
                                 <td>{{ $rule->label ?: '—' }}</td>
                                 <td class="mono text-muted">

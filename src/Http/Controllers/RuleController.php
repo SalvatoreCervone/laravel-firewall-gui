@@ -67,6 +67,9 @@ class RuleController extends Controller
         $groupId = isset($validated['group_id']) ? (int) $validated['group_id'] : null;
         $effectiveType = $this->resolveEffectiveType($groupId, $validated['type'] ?? null);
         $isActive = $request->boolean('is_active', true);
+        $notifyOnHit = $effectiveType === FirewallRule::TYPE_NOTIFY
+            || $request->boolean('notify_on_hit', false)
+            || ($groupId !== null && (bool) FirewallGroup::query()->whereKey($groupId)->value('notify_on_hit'));
 
         if ($this->wouldLockOutCurrentIp($request, $isActive, $effectiveType, $normalizedValue, $ruleType)) {
             return redirect()
@@ -82,6 +85,7 @@ class RuleController extends Controller
             'value' => $normalizedValue,
             'label' => $validated['label'] ?? null,
             'is_active' => $isActive,
+            'notify_on_hit' => $notifyOnHit,
             'expires_at' => ! empty($validated['expires_at']) ? Carbon::parse((string) $validated['expires_at']) : null,
             'created_by' => 'gui',
         ]);
@@ -101,6 +105,7 @@ class RuleController extends Controller
         $groupId = isset($validated['group_id']) ? (int) $validated['group_id'] : null;
         $effectiveType = $this->resolveEffectiveType($groupId, $validated['type'] ?? null);
         $isActive = $request->has('is_active') ? $request->boolean('is_active') : $rule->is_active;
+        $notifyOnHit = $effectiveType === FirewallRule::TYPE_NOTIFY || $request->boolean('notify_on_hit', $rule->notify_on_hit);
 
         if ($this->wouldLockOutCurrentIp($request, $isActive, $effectiveType, $normalizedValue, $ruleType)) {
             return redirect()
@@ -116,6 +121,7 @@ class RuleController extends Controller
             'value' => $normalizedValue,
             'label' => $validated['label'] ?? null,
             'is_active' => $isActive,
+            'notify_on_hit' => $notifyOnHit,
             'expires_at' => ! empty($validated['expires_at']) ? Carbon::parse((string) $validated['expires_at']) : null,
         ]);
 
@@ -165,14 +171,18 @@ class RuleController extends Controller
     {
         $validated = $request->validate([
             'entries' => ['required', 'string'],
-            'type' => ['required_without:group_id', 'nullable', 'in:whitelist,blacklist'],
+            'type' => ['required_without:group_id', 'nullable', 'in:whitelist,blacklist,notify'],
             'group_id' => ['nullable', 'integer', 'exists:firewall_groups,id'],
             'label' => ['nullable', 'string', 'max:255'],
+            'notify_on_hit' => ['nullable', 'boolean'],
         ]);
 
         $groupId = isset($validated['group_id']) ? (int) $validated['group_id'] : null;
         $effectiveType = $this->resolveEffectiveType($groupId, $validated['type'] ?? null);
         $label = $validated['label'] ?? null;
+        $notifyOnHit = $effectiveType === FirewallRule::TYPE_NOTIFY
+            || $request->boolean('notify_on_hit', false)
+            || ($groupId !== null && (bool) FirewallGroup::query()->whereKey($groupId)->value('notify_on_hit'));
 
         $lines = preg_split('/[\r\n,]+/', (string) $validated['entries']) ?: [];
 
@@ -208,6 +218,7 @@ class RuleController extends Controller
                 'value' => $normalizedValue,
                 'label' => $label,
                 'is_active' => true,
+                'notify_on_hit' => $notifyOnHit,
                 'created_by' => 'gui-bulk',
             ]);
 
@@ -250,11 +261,12 @@ class RuleController extends Controller
                     }
                 },
             ],
-            'type' => ['required_without:group_id', 'nullable', 'in:whitelist,blacklist'],
+            'type' => ['required_without:group_id', 'nullable', 'in:whitelist,blacklist,notify'],
             'group_id' => ['nullable', 'integer', 'exists:firewall_groups,id'],
             'label' => ['nullable', 'string', 'max:255'],
             'expires_at' => ['nullable', 'date'],
             'is_active' => ['nullable', 'boolean'],
+            'notify_on_hit' => ['nullable', 'boolean'],
         ]);
     }
 
