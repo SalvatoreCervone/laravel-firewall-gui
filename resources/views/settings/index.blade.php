@@ -88,7 +88,7 @@
                            name="notifications_cooldown_hours"
                            min="1"
                            max="8760"
-                           value="{{ old('notifications_cooldown_hours', $settings['cooldown_hours']) }}"
+                           value="{{ old('notifications_cooldown_hours', $settings['cooldown_hours'] ?? 24) }}"
                            required>
                     <span class="text-muted" style="font-size: 0.78rem;">Send at most 1 email per IP within this window.</span>
                 </div>

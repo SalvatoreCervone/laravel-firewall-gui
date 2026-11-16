@@ -217,7 +217,7 @@ class FirewallManager
         $ruleId = (int) ($decision->notifyRule['id'] ?? 0);
 
         $emailQueued = false;
-        $cooldownHours = max(1, (int) $settings['cooldown_hours']);
+        $cooldownHours = max(1, (int) ($settings['cooldown_hours'] ?? config('firewall-gui.notifications.cooldown_hours', 24)));
 
         if ($settings['enabled']) {
             $recipients = $this->parseNotificationRecipients($settings['to']);
@@ -270,17 +270,17 @@ class FirewallManager
     {
         $ttl = (int) config('firewall-gui.cache.ttl', 86400);
 
-        return $this->cacheStore()->remember($this->settingsCacheKey(), $ttl, function (): array {
-            $defaults = [
-                'enabled' => (bool) config('firewall-gui.notifications.enabled', true),
-                'to' => is_array($to = config('firewall-gui.notifications.to', ''))
-                    ? implode(', ', $to)
-                    : (string) $to,
-                'queue' => config('firewall-gui.notifications.queue') ?: null,
-                'cooldown_hours' => max(1, (int) config('firewall-gui.notifications.cooldown_hours', 24)),
-                'log_access' => (bool) config('firewall-gui.notifications.log_access', true),
-            ];
+        $defaults = [
+            'enabled' => (bool) config('firewall-gui.notifications.enabled', true),
+            'to' => is_array($to = config('firewall-gui.notifications.to', ''))
+                ? implode(', ', $to)
+                : (string) $to,
+            'queue' => config('firewall-gui.notifications.queue') ?: null,
+            'cooldown_hours' => max(1, (int) config('firewall-gui.notifications.cooldown_hours', 24)),
+            'log_access' => (bool) config('firewall-gui.notifications.log_access', true),
+        ];
 
+        $cached = $this->cacheStore()->remember($this->settingsCacheKey(), $ttl, function () use ($defaults): array {
             try {
                 $rows = FirewallSetting::query()
                     ->whereIn('key', [
@@ -313,6 +313,8 @@ class FirewallManager
 
             return $defaults;
         });
+
+        return array_merge($defaults, $cached);
     }
 
     /**
