@@ -9,11 +9,14 @@ use FirewallGui\LaravelFirewallGui\Console\Commands\ClearCacheCommand;
 use FirewallGui\LaravelFirewallGui\Console\Commands\NotifyCommand;
 use FirewallGui\LaravelFirewallGui\Console\Commands\UnblockCommand;
 use FirewallGui\LaravelFirewallGui\Http\Middleware\FirewallMiddleware;
+use FirewallGui\LaravelFirewallGui\Mail\FirewallAccessNotification;
 use FirewallGui\LaravelFirewallGui\Models\FirewallGroup;
 use FirewallGui\LaravelFirewallGui\Models\FirewallRule;
 use FirewallGui\LaravelFirewallGui\Models\FirewallSetting;
 use FirewallGui\LaravelFirewallGui\Services\FirewallManager;
+use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 
 class FirewallGuiServiceProvider extends ServiceProvider
@@ -73,6 +76,14 @@ class FirewallGuiServiceProvider extends ServiceProvider
 
         $this->app->resolving('mail.manager', function (): void {
             $this->app->make(FirewallManager::class)->applyCustomMailerConfig();
+        });
+
+        Queue::before(function (JobProcessing $event): void {
+            $displayName = $event->job->payload()['displayName'] ?? '';
+
+            if ($displayName === FirewallAccessNotification::class) {
+                $this->app->make(FirewallManager::class)->refreshCustomMailer();
+            }
         });
     }
 }

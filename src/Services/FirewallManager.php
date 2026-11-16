@@ -456,6 +456,18 @@ class FirewallManager
         return 'firewall_gui';
     }
 
+    public function refreshCustomMailer(): void
+    {
+        $this->applyCustomMailerConfig();
+
+        if (app()->resolved('mail.manager')) {
+            $manager = app('mail.manager');
+            if (method_exists($manager, 'purge')) {
+                $manager->purge('firewall_gui');
+            }
+        }
+    }
+
     /**
      * @param  array<int, string>|string  $recipients
      */
