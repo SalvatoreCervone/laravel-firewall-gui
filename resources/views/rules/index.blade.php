@@ -31,7 +31,6 @@
                     <select id="rule-type" name="type" required>
                         <option value="blacklist" {{ old('type', 'blacklist') === 'blacklist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.rules.blacklist_block') }}</option>
                         <option value="whitelist" {{ old('type') === 'whitelist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.rules.whitelist_allow') }}</option>
-                        <option value="notify" {{ old('type') === 'notify' ? 'selected' : '' }}>{{ __('firewall-gui::ui.rules.notify_only') }}</option>
                     </select>
                 </div>
 
@@ -41,7 +40,7 @@
                         <option value="">{{ __('firewall-gui::ui.common.none') }}</option>
                         @foreach ($groups as $group)
                             <option value="{{ $group->id }}" {{ (string) old('group_id') === (string) $group->id ? 'selected' : '' }}>
-                                {{ $group->name }} ({{ ucfirst($group->type) }})
+                                {{ $group->name }}
                             </option>
                         @endforeach
                     </select>
@@ -101,21 +100,20 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="bulk-type">Type</label>
+                    <label for="bulk-type">{{ __('firewall-gui::ui.groups.type') }}</label>
                     <select id="bulk-type" name="type" required>
-                        <option value="blacklist" {{ old('type', 'blacklist') === 'blacklist' ? 'selected' : '' }}>Blacklist</option>
-                        <option value="whitelist" {{ old('type') === 'whitelist' ? 'selected' : '' }}>Whitelist</option>
-                        <option value="notify" {{ old('type') === 'notify' ? 'selected' : '' }}>Notify (Alert Only)</option>
+                        <option value="blacklist" {{ old('type', 'blacklist') === 'blacklist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.blacklist') }}</option>
+                        <option value="whitelist" {{ old('type') === 'whitelist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.whitelist') }}</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label for="bulk-group">Group (optional)</label>
+                    <label for="bulk-group">{{ __('firewall-gui::ui.rules.group_optional') }}</label>
                     <select id="bulk-group" name="group_id">
-                        <option value="">— None —</option>
+                        <option value="">{{ __('firewall-gui::ui.common.none') }}</option>
                         @foreach ($groups as $group)
                             <option value="{{ $group->id }}" {{ (string) old('group_id') === (string) $group->id ? 'selected' : '' }}>
-                                {{ $group->name }} ({{ ucfirst($group->type) }})
+                                {{ $group->name }}
                             </option>
                         @endforeach
                     </select>

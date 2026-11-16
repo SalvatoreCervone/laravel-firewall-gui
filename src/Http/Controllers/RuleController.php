@@ -272,11 +272,17 @@ class RuleController extends Controller
 
     protected function resolveEffectiveType(?int $groupId, ?string $type): string
     {
-        if ($groupId !== null) {
-            return FirewallGroup::query()->findOrFail($groupId)->type;
+        if (is_string($type) && $type !== '') {
+            return $type;
         }
 
-        return (string) $type;
+        if ($groupId !== null) {
+            $groupType = FirewallGroup::query()->findOrFail($groupId)->type;
+
+            return $groupType === 'mixed' ? FirewallRule::TYPE_BLACKLIST : $groupType;
+        }
+
+        return FirewallRule::TYPE_BLACKLIST;
     }
 
     protected function wouldLockOutCurrentIp(

@@ -66,7 +66,7 @@ class GroupController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:firewall_groups,name'],
-            'type' => ['required', 'in:whitelist,blacklist,notify'],
+            'type' => ['nullable', 'in:mixed,whitelist,blacklist,notify'],
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
             'notify_on_hit' => ['nullable', 'boolean'],
@@ -74,13 +74,15 @@ class GroupController extends Controller
             'priority' => ['nullable', 'integer'],
         ]);
 
+        $type = $validated['type'] ?? 'mixed';
+
         $group = FirewallGroup::query()->create([
             'name' => $validated['name'],
             'slug' => Str::slug($validated['name']),
-            'type' => $validated['type'],
+            'type' => $type,
             'description' => $validated['description'] ?? null,
             'is_active' => $request->boolean('is_active', true),
-            'notify_on_hit' => $validated['type'] === FirewallRule::TYPE_NOTIFY || $request->boolean('notify_on_hit', false),
+            'notify_on_hit' => $type === FirewallRule::TYPE_NOTIFY || $request->boolean('notify_on_hit', false),
             'notification_cooldown_hours' => isset($validated['notification_cooldown_hours']) && $validated['notification_cooldown_hours'] !== ''
                 ? (int) $validated['notification_cooldown_hours']
                 : null,
@@ -114,7 +116,7 @@ class GroupController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('firewall_groups', 'name')->ignore($group->id)],
-            'type' => ['required', 'in:whitelist,blacklist,notify'],
+            'type' => ['nullable', 'in:mixed,whitelist,blacklist,notify'],
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
             'notify_on_hit' => ['nullable', 'boolean'],
@@ -122,22 +124,23 @@ class GroupController extends Controller
             'priority' => ['nullable', 'integer'],
         ]);
 
+        $type = $validated['type'] ?? $group->type;
         $isActive = $request->has('is_active') ? $request->boolean('is_active') : $group->is_active;
-        $notifyOnHit = $validated['type'] === FirewallRule::TYPE_NOTIFY || $request->boolean('notify_on_hit', $group->notify_on_hit);
+        $notifyOnHit = $type === FirewallRule::TYPE_NOTIFY || $request->boolean('notify_on_hit', $group->notify_on_hit);
 
-        if ($isActive && $validated['type'] === FirewallRule::TYPE_BLACKLIST && $this->groupContainsCurrentIp($request, $group)) {
+        if ($isActive && $type === FirewallRule::TYPE_BLACKLIST && $this->groupContainsCurrentIp($request, $group)) {
             return redirect()
                 ->back()
                 ->withInput()
                 ->with('error', 'Cannot save an active blacklist group that contains a rule matching your current IP address.');
         }
 
-        $typeChanged = $group->type !== $validated['type'];
+        $typeChanged = isset($validated['type']) && $group->type !== $type && $type !== 'mixed';
 
         $group->update([
             'name' => $validated['name'],
             'slug' => Str::slug($validated['name']),
-            'type' => $validated['type'],
+            'type' => $type,
             'description' => $validated['description'] ?? null,
             'is_active' => $isActive,
             'notify_on_hit' => $notifyOnHit,

@@ -504,4 +504,44 @@ class GuiControllerTest extends TestCase
         ]);
         Mail::assertQueued(FirewallAccessNotification::class, 2);
     }
+
+    public function test_group_can_contain_both_whitelist_and_blacklist_rules(): void
+    {
+        $this->post('/firewall/groups', [
+            'name' => 'Mixed Office Group',
+            'priority' => 50,
+            'is_active' => '1',
+        ])->assertRedirect();
+
+        $group = FirewallGroup::query()->where('name', 'Mixed Office Group')->firstOrFail();
+        $this->assertSame('mixed', $group->type);
+
+        $this->post('/firewall/rules', [
+            'value' => '10.10.0.5',
+            'type' => 'whitelist',
+            'group_id' => $group->id,
+            'is_active' => '1',
+        ])->assertRedirect();
+
+        $this->post('/firewall/rules', [
+            'value' => '10.10.0.99',
+            'type' => 'blacklist',
+            'group_id' => $group->id,
+            'is_active' => '1',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('firewall_rules', [
+            'group_id' => $group->id,
+            'value' => '10.10.0.5',
+            'type' => 'whitelist',
+        ]);
+        $this->assertDatabaseHas('firewall_rules', [
+            'group_id' => $group->id,
+            'value' => '10.10.0.99',
+            'type' => 'blacklist',
+        ]);
+
+        $this->assertTrue(\FirewallGui\LaravelFirewallGui\Facades\Firewall::check('10.10.0.5')->allowed);
+        $this->assertTrue(\FirewallGui\LaravelFirewallGui\Facades\Firewall::check('10.10.0.99')->isBlocked());
+    }
 }

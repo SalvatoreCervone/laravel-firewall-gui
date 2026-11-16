@@ -7,14 +7,6 @@
         <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
             <a href="{{ route('firewall-gui.groups.index') }}" class="btn btn-secondary btn-sm">&larr; {{ __('firewall-gui::ui.groups.all_groups') }}</a>
 
-            @if ($group->type === 'whitelist')
-                <span class="badge badge-green">{{ __('firewall-gui::ui.common.whitelist') }}</span>
-            @elseif ($group->type === 'notify')
-                <span class="badge badge-blue">{{ __('firewall-gui::ui.common.notify') }}</span>
-            @else
-                <span class="badge badge-red">{{ __('firewall-gui::ui.common.blacklist') }}</span>
-            @endif
-
             @if ($group->is_active)
                 <span class="badge badge-green">{{ __('firewall-gui::ui.common.active') }}</span>
             @else
@@ -46,15 +38,6 @@
                            name="name"
                            value="{{ old('name', $group->name) }}"
                            required>
-                </div>
-
-                <div class="form-group">
-                    <label for="edit-group-type">{{ __('firewall-gui::ui.groups.type') }}</label>
-                    <select id="edit-group-type" name="type" required>
-                        <option value="blacklist" {{ old('type', $group->type) === 'blacklist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.blacklist') }}</option>
-                        <option value="whitelist" {{ old('type', $group->type) === 'whitelist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.whitelist') }}</option>
-                        <option value="notify" {{ old('type', $group->type) === 'notify' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.notify_alert_only') }}</option>
-                    </select>
                 </div>
 
                 <div class="form-group">
@@ -110,14 +93,12 @@
         <div class="card-header">
             <div>
                 <h2 class="card-title">{{ __('firewall-gui::ui.groups.add_rule_title', ['name' => $group->name]) }}</h2>
-                <p class="card-subtitle">{{ __('firewall-gui::ui.groups.add_rule_subtitle', ['type' => $group->type]) }}</p>
             </div>
         </div>
         <div class="card-body">
             <form method="POST" action="{{ route('firewall-gui.rules.store') }}" class="form-grid">
                 @csrf
                 <input type="hidden" name="group_id" value="{{ $group->id }}">
-                <input type="hidden" name="type" value="{{ $group->type }}">
 
                 <div class="form-group" style="grid-column: span 2;">
                     <label for="group-rule-value">{{ __('firewall-gui::ui.rules.ip_cidr_range') }}</label>
@@ -129,6 +110,14 @@
                            data-ip-preview="group-rule-value-preview"
                            required>
                     <div id="group-rule-value-preview" class="text-muted mono" style="font-size: 0.78rem; margin-top: 0.35rem; display: none;"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="group-rule-type">{{ __('firewall-gui::ui.rules.action_type') }}</label>
+                    <select id="group-rule-type" name="type" required>
+                        <option value="blacklist" {{ old('type', 'blacklist') === 'blacklist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.rules.blacklist_block') }}</option>
+                        <option value="whitelist" {{ old('type') === 'whitelist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.rules.whitelist_allow') }}</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
@@ -175,7 +164,6 @@
             <form method="POST" action="{{ route('firewall-gui.rules.bulk-import') }}" class="form-grid">
                 @csrf
                 <input type="hidden" name="group_id" value="{{ $group->id }}">
-                <input type="hidden" name="type" value="{{ $group->type }}">
 
                 <div class="form-group form-group-full">
                     <label for="group-bulk-entries">{{ __('firewall-gui::ui.rules.bulk_entries') }}</label>
@@ -184,6 +172,14 @@
                               rows="5"
                               placeholder="192.168.1.10&#10;10.0.0.0/8&#10;172.16.0.1-172.16.0.50"
                               required>{{ old('entries') }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="group-bulk-type">{{ __('firewall-gui::ui.groups.type') }}</label>
+                    <select id="group-bulk-type" name="type" required>
+                        <option value="blacklist" {{ old('type', 'blacklist') === 'blacklist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.blacklist') }}</option>
+                        <option value="whitelist" {{ old('type') === 'whitelist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.whitelist') }}</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
@@ -221,6 +217,7 @@
                         <tr>
                             <th>{{ __('firewall-gui::ui.rules.col_value') }}</th>
                             <th>{{ __('firewall-gui::ui.rules.col_format') }}</th>
+                            <th>{{ __('firewall-gui::ui.rules.col_type') }}</th>
                             <th>{{ __('firewall-gui::ui.rules.col_label') }}</th>
                             <th>{{ __('firewall-gui::ui.rules.col_expiration') }}</th>
                             <th>{{ __('firewall-gui::ui.common.status') }}</th>
@@ -243,8 +240,17 @@
                                 </td>
                                 <td>
                                     <span class="badge badge-slate">{{ strtoupper($rule->rule_type) }}</span>
-                                    @if ($rule->notify_on_hit || $group->notify_on_hit)
-                                        <span class="badge badge-blue" style="margin-left: 0.25rem;">{{ __('firewall-gui::ui.common.notify') }}</span>
+                                </td>
+                                <td>
+                                    @if ($rule->type === 'whitelist')
+                                        <span class="badge badge-green">{{ __('firewall-gui::ui.common.whitelist') }}</span>
+                                    @elseif ($rule->type === 'notify')
+                                        <span class="badge badge-blue">{{ __('firewall-gui::ui.common.notify_only') }}</span>
+                                    @else
+                                        <span class="badge badge-red">{{ __('firewall-gui::ui.common.blacklist') }}</span>
+                                    @endif
+                                    @if ($rule->type !== 'notify' && ($rule->notify_on_hit || $group->notify_on_hit))
+                                        <span class="badge badge-blue" style="margin-left: 0.25rem;">{{ __('firewall-gui::ui.common.plus_notify') }}</span>
                                     @endif
                                 </td>
                                 <td>{{ $rule->label ?: '—' }}</td>

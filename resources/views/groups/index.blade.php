@@ -25,15 +25,6 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="group-type">{{ __('firewall-gui::ui.groups.type') }}</label>
-                    <select id="group-type" name="type" required>
-                        <option value="blacklist" {{ old('type', 'blacklist') === 'blacklist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.blacklist') }}</option>
-                        <option value="whitelist" {{ old('type') === 'whitelist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.whitelist') }}</option>
-                        <option value="notify" {{ old('type') === 'notify' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.notify_alert_only') }}</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
                     <label for="group-priority">{{ __('firewall-gui::ui.groups.priority') }}</label>
                     <input type="number"
                            id="group-priority"
@@ -101,7 +92,6 @@
                     <thead>
                         <tr>
                             <th>{{ __('firewall-gui::ui.groups.col_name') }}</th>
-                            <th>{{ __('firewall-gui::ui.groups.col_type') }}</th>
                             <th>{{ __('firewall-gui::ui.groups.col_rules') }}</th>
                             <th>{{ __('firewall-gui::ui.groups.col_priority') }}</th>
                             <th>{{ __('firewall-gui::ui.common.status') }}</th>
@@ -115,20 +105,11 @@
                                     <a href="{{ route('firewall-gui.groups.show', $group) }}" style="font-weight: 600;">
                                         {{ $group->name }}
                                     </a>
+                                    @if ($group->notify_on_hit)
+                                        <span class="badge badge-blue" style="margin-left: 0.35rem;">{{ __('firewall-gui::ui.common.plus_notify') }}</span>
+                                    @endif
                                     @if ($group->description)
                                         <div class="text-muted" style="font-size: 0.8rem;">{{ $group->description }}</div>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if ($group->type === 'whitelist')
-                                        <span class="badge badge-green">{{ __('firewall-gui::ui.common.whitelist') }}</span>
-                                    @elseif ($group->type === 'notify')
-                                        <span class="badge badge-blue">{{ __('firewall-gui::ui.common.notify_only') }}</span>
-                                    @else
-                                        <span class="badge badge-red">{{ __('firewall-gui::ui.common.blacklist') }}</span>
-                                    @endif
-                                    @if ($group->type !== 'notify' && $group->notify_on_hit)
-                                        <span class="badge badge-blue" style="margin-left: 0.25rem;">{{ __('firewall-gui::ui.common.plus_notify') }}</span>
                                     @endif
                                 </td>
                                 <td>

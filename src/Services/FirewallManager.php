@@ -725,7 +725,7 @@ class FirewallManager
             ];
 
             foreach ($rules as $rule) {
-                $effectiveType = $rule->group?->type ?? $rule->type;
+                $effectiveType = $rule->type;
                 $priority = (int) ($rule->group?->priority ?? 0);
 
                 $item = [
