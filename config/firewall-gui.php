@@ -123,6 +123,7 @@ return [
         'encryption' => env('FIREWALL_GUI_MAIL_ENCRYPTION', 'tls'), // 'tls', 'ssl', or null
         'username' => env('FIREWALL_GUI_MAIL_USERNAME', null),
         'password' => env('FIREWALL_GUI_MAIL_PASSWORD', null),
+        'timeout' => env('FIREWALL_GUI_MAIL_TIMEOUT', 15),
         'from_address' => env('FIREWALL_GUI_MAIL_FROM_ADDRESS', null),
         'from_name' => env('FIREWALL_GUI_MAIL_FROM_NAME', null),
     ],

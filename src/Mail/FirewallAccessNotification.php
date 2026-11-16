@@ -15,6 +15,8 @@ class FirewallAccessNotification extends Mailable implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
+    public int $timeout = 30;
+
     /**
      * @param  array<string, mixed>  $matchedRule
      * @param  array<string, mixed>|null  $matchedGroup

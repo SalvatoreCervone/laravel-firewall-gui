@@ -427,12 +427,13 @@ class FirewallManager
         $mailerConfig = match ($mail['mailer']) {
             'smtp' => [
                 'transport' => 'smtp',
+                'scheme' => $mail['encryption'] === 'ssl' ? 'smtps' : ($mail['encryption'] === 'tls' ? 'smtp' : null),
                 'host' => $mail['host'],
                 'port' => $mail['port'] ?? 587,
                 'encryption' => $mail['encryption'] ?: null,
                 'username' => $mail['username'] ?: null,
                 'password' => $mail['password'] ?: null,
-                'timeout' => null,
+                'timeout' => max(1, (int) config('firewall-gui.mail.timeout', 15)),
                 'local_domain' => config('mail.mailers.smtp.local_domain'),
             ],
             'sendmail' => [
