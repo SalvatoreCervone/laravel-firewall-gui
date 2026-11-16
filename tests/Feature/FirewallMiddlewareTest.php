@@ -244,4 +244,54 @@ class FirewallMiddlewareTest extends TestCase
                 && ! $mail->hasTo('only-b@example.com');
         });
     }
+
+    public function test_whitelist_only_mode_notifies_on_unmatched_blocked_ip_when_enabled(): void
+    {
+        Mail::fake();
+
+        config()->set('firewall-gui.mode', 'whitelist_only');
+        config()->set('firewall-gui.notifications.to', 'security@example.com');
+        config()->set('firewall-gui.notifications.on_unmatched_block', true);
+
+        Firewall::allow('198.51.100.1', 'Allowed office IP');
+
+        // Whitelisted IP -> allowed, no email
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
+            ->get('/protected-endpoint')
+            ->assertOk();
+
+        Mail::assertNothingQueued();
+
+        // Unknown IP (not in whitelist) -> blocked twice, 2 logs, 1 email within cooldown
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.99'])
+            ->getJson('/protected-endpoint')
+            ->assertStatus(403);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.99'])
+            ->getJson('/protected-endpoint')
+            ->assertStatus(403);
+
+        Mail::assertQueued(FirewallAccessNotification::class, 1);
+        Mail::assertQueued(FirewallAccessNotification::class, function (FirewallAccessNotification $mail): bool {
+            return $mail->decisionAction === 'blocked'
+                && $mail->ipAddress === '203.0.113.99';
+        });
+        $this->assertSame(2, FirewallLog::query()->where('ip_address', '203.0.113.99')->where('action', 'blocked')->count());
+    }
+
+    public function test_whitelist_only_mode_does_not_notify_on_unmatched_block_when_disabled(): void
+    {
+        Mail::fake();
+
+        config()->set('firewall-gui.mode', 'whitelist_only');
+        config()->set('firewall-gui.notifications.to', 'security@example.com');
+        config()->set('firewall-gui.notifications.on_unmatched_block', false);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.88'])
+            ->getJson('/protected-endpoint')
+            ->assertStatus(403);
+
+        Mail::assertNothingQueued();
+        $this->assertSame(1, FirewallLog::query()->where('ip_address', '203.0.113.88')->where('action', 'blocked')->count());
+    }
 }

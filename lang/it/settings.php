@@ -14,6 +14,17 @@ return [
         'saved_message' => 'Lingua del pannello aggiornata.',
     ],
 
+    'engine' => [
+        'title' => 'Modalità Firewall & Comportamento Blocco',
+        'subtitle' => 'Scegli come il firewall gestisce il traffico quando coincide o non coincide con le regole. I log vengono sempre registrati.',
+        'mode_label' => 'Modalità di Valutazione',
+        'mode_blacklist' => 'Solo Blacklist (consenti tutto tranne la Blacklist)',
+        'mode_whitelist' => 'Solo Whitelist (consenti solo la Whitelist)',
+        'block_enabled_label' => 'Blocca le richieste non consentite (se disattivato, lascia passare in Dry-Run registrando sempre il log)',
+        'save_button' => 'Salva Modalità Firewall',
+        'saved_message' => 'Modalità firewall salvata.',
+    ],
+
     'notifications' => [
         'title' => 'Impostazioni Notifiche Email',
         'subtitle' => 'Configura gli avvisi email in coda per regole e gruppi con notifiche attive (intervallo configurabile per IP; tutti gli accessi restano registrati).',
@@ -34,6 +45,7 @@ return [
         'cooldown_label' => 'Intervallo Notifiche (Ore)',
         'cooldown_help' => 'Invia al massimo 1 email per IP in questa finestra temporale.',
         'enabled_label' => 'Abilita Notifiche Email',
+        'on_unmatched_block_label' => 'Avvisa su blocco di default (IP non in Whitelist)',
         'log_access_label' => 'Registra Accessi Notify Consentiti',
         'save_button' => 'Salva Impostazioni',
         'saved_message' => 'Impostazioni notifiche salvate.',

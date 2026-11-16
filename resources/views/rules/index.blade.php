@@ -1,13 +1,13 @@
 @extends('firewall-gui::layout')
 
-@section('title', 'Rules')
+@section('title', __('firewall-gui::ui.rules.title'))
 
 @section('content')
     <div class="card">
         <div class="card-header">
             <div>
-                <h2 class="card-title">Add Rule</h2>
-                <p class="card-subtitle">Create a single IP, CIDR subnet, or IP range rule.</p>
+                <h2 class="card-title">{{ __('firewall-gui::ui.rules.add_title') }}</h2>
+                <p class="card-subtitle">{{ __('firewall-gui::ui.rules.add_subtitle') }}</p>
             </div>
         </div>
         <div class="card-body">
@@ -15,7 +15,7 @@
                 @csrf
 
                 <div class="form-group" style="grid-column: span 2;">
-                    <label for="rule-value">IP / CIDR / Range</label>
+                    <label for="rule-value">{{ __('firewall-gui::ui.rules.ip_cidr_range') }}</label>
                     <input type="text"
                            id="rule-value"
                            name="value"
@@ -27,18 +27,18 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="rule-type">Action / Type</label>
+                    <label for="rule-type">{{ __('firewall-gui::ui.rules.action_type') }}</label>
                     <select id="rule-type" name="type" required>
-                        <option value="blacklist" {{ old('type', 'blacklist') === 'blacklist' ? 'selected' : '' }}>Blacklist (Block)</option>
-                        <option value="whitelist" {{ old('type') === 'whitelist' ? 'selected' : '' }}>Whitelist (Allow)</option>
-                        <option value="notify" {{ old('type') === 'notify' ? 'selected' : '' }}>Notify Only (Allow &amp; Email)</option>
+                        <option value="blacklist" {{ old('type', 'blacklist') === 'blacklist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.rules.blacklist_block') }}</option>
+                        <option value="whitelist" {{ old('type') === 'whitelist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.rules.whitelist_allow') }}</option>
+                        <option value="notify" {{ old('type') === 'notify' ? 'selected' : '' }}>{{ __('firewall-gui::ui.rules.notify_only') }}</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label for="rule-group">Group (optional)</label>
+                    <label for="rule-group">{{ __('firewall-gui::ui.rules.group_optional') }}</label>
                     <select id="rule-group" name="group_id">
-                        <option value="">— None —</option>
+                        <option value="">{{ __('firewall-gui::ui.common.none') }}</option>
                         @foreach ($groups as $group)
                             <option value="{{ $group->id }}" {{ (string) old('group_id') === (string) $group->id ? 'selected' : '' }}>
                                 {{ $group->name }} ({{ ucfirst($group->type) }})
@@ -48,16 +48,16 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="rule-label">Label (optional)</label>
+                    <label for="rule-label">{{ __('firewall-gui::ui.rules.label_optional') }}</label>
                     <input type="text"
                            id="rule-label"
                            name="label"
                            value="{{ old('label') }}"
-                           placeholder="e.g. Office VPN">
+                           placeholder="{{ __('firewall-gui::ui.rules.label_placeholder') }}">
                 </div>
 
                 <div class="form-group">
-                    <label for="rule-expires">Expires At (optional)</label>
+                    <label for="rule-expires">{{ __('firewall-gui::ui.rules.expires_optional') }}</label>
                     <input type="datetime-local"
                            id="rule-expires"
                            name="expires_at"
@@ -67,32 +67,32 @@
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }}>
-                        <span>Active immediately</span>
+                        <span>{{ __('firewall-gui::ui.rules.active_immediately') }}</span>
                     </label>
                 </div>
 
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="notify_on_hit" value="1" {{ old('notify_on_hit', false) ? 'checked' : '' }}>
-                        <span>Email alert (1st hit/day)</span>
+                        <span>{{ __('firewall-gui::ui.rules.email_alert_on_hit') }}</span>
                     </label>
                 </div>
 
                 <div class="form-group">
-                    <button type="submit" class="btn btn-primary">Add Rule</button>
+                    <button type="submit" class="btn btn-primary">{{ __('firewall-gui::ui.rules.add_button') }}</button>
                 </div>
             </form>
         </div>
     </div>
 
     <details class="collapsible">
-        <summary>Bulk Import Rules</summary>
+        <summary>{{ __('firewall-gui::ui.rules.bulk_title') }}</summary>
         <div class="collapsible-body">
             <form method="POST" action="{{ route('firewall-gui.rules.bulk-import') }}" class="form-grid">
                 @csrf
 
                 <div class="form-group form-group-full">
-                    <label for="bulk-entries">Entries (one IP, CIDR, or range per line)</label>
+                    <label for="bulk-entries">{{ __('firewall-gui::ui.rules.bulk_entries') }}</label>
                     <textarea id="bulk-entries"
                               name="entries"
                               rows="5"

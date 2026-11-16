@@ -1,34 +1,34 @@
 @extends('firewall-gui::layout')
 
-@section('title', 'Group: ' . $group->name)
+@section('title', __('firewall-gui::ui.groups.show_title', ['name' => $group->name]))
 
 @section('content')
     <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
         <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
-            <a href="{{ route('firewall-gui.groups.index') }}" class="btn btn-secondary btn-sm">&larr; All Groups</a>
+            <a href="{{ route('firewall-gui.groups.index') }}" class="btn btn-secondary btn-sm">&larr; {{ __('firewall-gui::ui.groups.all_groups') }}</a>
 
             @if ($group->type === 'whitelist')
-                <span class="badge badge-green">Whitelist</span>
+                <span class="badge badge-green">{{ __('firewall-gui::ui.common.whitelist') }}</span>
             @elseif ($group->type === 'notify')
-                <span class="badge badge-blue">Notify</span>
+                <span class="badge badge-blue">{{ __('firewall-gui::ui.common.notify') }}</span>
             @else
-                <span class="badge badge-red">Blacklist</span>
+                <span class="badge badge-red">{{ __('firewall-gui::ui.common.blacklist') }}</span>
             @endif
 
             @if ($group->is_active)
-                <span class="badge badge-green">Active</span>
+                <span class="badge badge-green">{{ __('firewall-gui::ui.common.active') }}</span>
             @else
-                <span class="badge badge-slate">Inactive</span>
+                <span class="badge badge-slate">{{ __('firewall-gui::ui.common.inactive') }}</span>
             @endif
 
-            <span class="badge badge-slate">Priority: {{ $group->priority }}</span>
+            <span class="badge badge-slate">{{ __('firewall-gui::ui.groups.priority_badge', ['priority' => $group->priority]) }}</span>
         </div>
     </div>
 
     <div class="card">
         <div class="card-header">
             <div>
-                <h2 class="card-title">Edit Group Settings</h2>
+                <h2 class="card-title">{{ __('firewall-gui::ui.groups.edit_title') }}</h2>
                 @if ($group->description)
                     <p class="card-subtitle">{{ $group->description }}</p>
                 @endif
@@ -40,7 +40,7 @@
                 @method('PUT')
 
                 <div class="form-group">
-                    <label for="edit-group-name">Group Name</label>
+                    <label for="edit-group-name">{{ __('firewall-gui::ui.groups.name') }}</label>
                     <input type="text"
                            id="edit-group-name"
                            name="name"
@@ -49,16 +49,16 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="edit-group-type">Type</label>
+                    <label for="edit-group-type">{{ __('firewall-gui::ui.groups.type') }}</label>
                     <select id="edit-group-type" name="type" required>
-                        <option value="blacklist" {{ old('type', $group->type) === 'blacklist' ? 'selected' : '' }}>Blacklist</option>
-                        <option value="whitelist" {{ old('type', $group->type) === 'whitelist' ? 'selected' : '' }}>Whitelist</option>
-                        <option value="notify" {{ old('type', $group->type) === 'notify' ? 'selected' : '' }}>Notify (Alert Only)</option>
+                        <option value="blacklist" {{ old('type', $group->type) === 'blacklist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.blacklist') }}</option>
+                        <option value="whitelist" {{ old('type', $group->type) === 'whitelist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.whitelist') }}</option>
+                        <option value="notify" {{ old('type', $group->type) === 'notify' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.notify_alert_only') }}</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label for="edit-group-priority">Priority</label>
+                    <label for="edit-group-priority">{{ __('firewall-gui::ui.groups.priority') }}</label>
                     <input type="number"
                            id="edit-group-priority"
                            name="priority"
@@ -67,18 +67,18 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="edit-group-cooldown">Email Cooldown (Hours)</label>
+                    <label for="edit-group-cooldown">{{ __('firewall-gui::ui.groups.cooldown_hours') }}</label>
                     <input type="number"
                            id="edit-group-cooldown"
                            name="notification_cooldown_hours"
                            min="1"
                            max="8760"
                            value="{{ old('notification_cooldown_hours', $group->notification_cooldown_hours) }}"
-                           placeholder="Default ({{ $globalCooldownHours ?? 24 }}h)">
+                           placeholder="{{ __('firewall-gui::ui.groups.cooldown_placeholder', ['hours' => $globalCooldownHours ?? 24]) }}">
                 </div>
 
                 <div class="form-group" style="grid-column: span 2;">
-                    <label for="edit-group-description">Description</label>
+                    <label for="edit-group-description">{{ __('firewall-gui::ui.groups.description') }}</label>
                     <input type="text"
                            id="edit-group-description"
                            name="description"
@@ -88,19 +88,19 @@
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="is_active" value="1" {{ old('is_active', $group->is_active) ? 'checked' : '' }}>
-                        <span>Active</span>
+                        <span>{{ __('firewall-gui::ui.common.active') }}</span>
                     </label>
                 </div>
 
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="notify_on_hit" value="1" {{ old('notify_on_hit', $group->notify_on_hit) ? 'checked' : '' }}>
-                        <span>Email alert on hit</span>
+                        <span>{{ __('firewall-gui::ui.groups.email_alert_on_hit') }}</span>
                     </label>
                 </div>
 
                 <div class="form-group">
-                    <button type="submit" class="btn btn-primary">Save Group</button>
+                    <button type="submit" class="btn btn-primary">{{ __('firewall-gui::ui.groups.save_button') }}</button>
                 </div>
             </form>
         </div>

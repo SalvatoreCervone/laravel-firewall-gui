@@ -406,7 +406,14 @@ class GuiControllerTest extends TestCase
         $this->get('/firewall/settings')
             ->assertOk()
             ->assertSee('Lingua Pannello')
-            ->assertSee('Impostazioni Notifiche Email');
+            ->assertSee('Impostazioni Notifiche Email')
+            ->assertSee('Regole')
+            ->assertSee('Gruppi');
+
+        $this->get('/firewall')
+            ->assertOk()
+            ->assertSee('Simulatore Test IP')
+            ->assertSee('Richieste Bloccate Recenti');
     }
 
     public function test_settings_page_saves_per_recipient_group_filters(): void
@@ -433,5 +440,46 @@ class GuiControllerTest extends TestCase
         $this->assertCount(2, $settings['recipients']);
         $this->assertSame([], $settings['recipients'][0]['group_ids']);
         $this->assertSame([$groupA->id], $settings['recipients'][1]['group_ids']);
+    }
+
+    public function test_settings_page_can_configure_whitelist_only_allow_with_email_and_block_toggle(): void
+    {
+        Mail::fake();
+        \Illuminate\Support\Facades\Route::middleware(\FirewallGui\LaravelFirewallGui\Http\Middleware\FirewallMiddleware::class)
+            ->get('/engine-test-endpoint', fn () => response('OK', 200));
+
+        $this->put('/firewall/settings', [
+            'notifications_enabled' => '1',
+            'notifications_emails_present' => '1',
+            'notifications_recipients' => [['email' => 'soc@example.com', 'group_ids' => []]],
+            'notifications_on_unmatched_block_present' => '1',
+            'notifications_on_unmatched_block' => '1',
+        ])->assertRedirect();
+
+        // Whitelist only + DO NOT block unmatched (dry_run = true) -> allows, logs, sends email
+        $this->put('/firewall/settings/engine', [
+            'firewall_mode' => 'whitelist_only',
+        ])->assertRedirect();
+
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.77'])
+            ->get('/engine-test-endpoint')
+            ->assertOk()
+            ->assertSee('OK');
+
+        $this->assertDatabaseHas('firewall_logs', [
+            'ip_address' => '203.0.113.77',
+            'action' => 'dry_run_blocked',
+        ]);
+        Mail::assertQueued(FirewallAccessNotification::class, 1);
+
+        // Now enable blocking from panel -> 403 Forbidden
+        $this->put('/firewall/settings/engine', [
+            'firewall_mode' => 'whitelist_only',
+            'firewall_block_enabled' => '1',
+        ])->assertRedirect();
+
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.78'])
+            ->get('/engine-test-endpoint')
+            ->assertStatus(403);
     }
 }

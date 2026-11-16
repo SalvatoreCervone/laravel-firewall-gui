@@ -1,13 +1,13 @@
 @extends('firewall-gui::layout')
 
-@section('title', 'Groups')
+@section('title', __('firewall-gui::ui.groups.title'))
 
 @section('content')
     <div class="card">
         <div class="card-header">
             <div>
-                <h2 class="card-title">Create Group</h2>
-                <p class="card-subtitle">Organize related IP rules into reusable whitelist or blacklist groups.</p>
+                <h2 class="card-title">{{ __('firewall-gui::ui.groups.create_title') }}</h2>
+                <p class="card-subtitle">{{ __('firewall-gui::ui.groups.create_subtitle') }}</p>
             </div>
         </div>
         <div class="card-body">
@@ -15,26 +15,26 @@
                 @csrf
 
                 <div class="form-group">
-                    <label for="group-name">Group Name</label>
+                    <label for="group-name">{{ __('firewall-gui::ui.groups.name') }}</label>
                     <input type="text"
                            id="group-name"
                            name="name"
                            value="{{ old('name') }}"
-                           placeholder="e.g. Corporate Offices"
+                           placeholder="{{ __('firewall-gui::ui.groups.name_placeholder') }}"
                            required>
                 </div>
 
                 <div class="form-group">
-                    <label for="group-type">Type</label>
+                    <label for="group-type">{{ __('firewall-gui::ui.groups.type') }}</label>
                     <select id="group-type" name="type" required>
-                        <option value="blacklist" {{ old('type', 'blacklist') === 'blacklist' ? 'selected' : '' }}>Blacklist</option>
-                        <option value="whitelist" {{ old('type') === 'whitelist' ? 'selected' : '' }}>Whitelist</option>
-                        <option value="notify" {{ old('type') === 'notify' ? 'selected' : '' }}>Notify (Alert Only)</option>
+                        <option value="blacklist" {{ old('type', 'blacklist') === 'blacklist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.blacklist') }}</option>
+                        <option value="whitelist" {{ old('type') === 'whitelist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.whitelist') }}</option>
+                        <option value="notify" {{ old('type') === 'notify' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.notify_alert_only') }}</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label for="group-priority">Priority</label>
+                    <label for="group-priority">{{ __('firewall-gui::ui.groups.priority') }}</label>
                     <input type="number"
                            id="group-priority"
                            name="priority"
@@ -43,41 +43,41 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="group-cooldown">Email Cooldown (Hours)</label>
+                    <label for="group-cooldown">{{ __('firewall-gui::ui.groups.cooldown_hours') }}</label>
                     <input type="number"
                            id="group-cooldown"
                            name="notification_cooldown_hours"
                            min="1"
                            max="8760"
                            value="{{ old('notification_cooldown_hours') }}"
-                           placeholder="Default ({{ $globalCooldownHours ?? 24 }}h)">
+                           placeholder="{{ __('firewall-gui::ui.groups.cooldown_placeholder', ['hours' => $globalCooldownHours ?? 24]) }}">
                 </div>
 
                 <div class="form-group" style="grid-column: span 2;">
-                    <label for="group-description">Description (optional)</label>
+                    <label for="group-description">{{ __('firewall-gui::ui.groups.description_optional') }}</label>
                     <input type="text"
                            id="group-description"
                            name="description"
                            value="{{ old('description') }}"
-                           placeholder="Brief notes about this group...">
+                           placeholder="{{ __('firewall-gui::ui.groups.description_placeholder') }}">
                 </div>
 
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }}>
-                        <span>Active immediately</span>
+                        <span>{{ __('firewall-gui::ui.groups.active_immediately') }}</span>
                     </label>
                 </div>
 
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="notify_on_hit" value="1" {{ old('notify_on_hit', false) ? 'checked' : '' }}>
-                        <span>Email alert on hit</span>
+                        <span>{{ __('firewall-gui::ui.groups.email_alert_on_hit') }}</span>
                     </label>
                 </div>
 
                 <div class="form-group">
-                    <button type="submit" class="btn btn-primary">Create Group</button>
+                    <button type="submit" class="btn btn-primary">{{ __('firewall-gui::ui.groups.create_button') }}</button>
                 </div>
             </form>
         </div>
@@ -86,14 +86,14 @@
     <div class="card">
         <div class="card-header">
             <div>
-                <h2 class="card-title">Rule Groups</h2>
-                <p class="card-subtitle">Click a group name to edit its settings or manage its rules.</p>
+                <h2 class="card-title">{{ __('firewall-gui::ui.groups.list_title') }}</h2>
+                <p class="card-subtitle">{{ __('firewall-gui::ui.groups.list_subtitle') }}</p>
             </div>
         </div>
 
         @if ($groups->isEmpty())
             <div class="empty-state">
-                No firewall groups have been created yet.
+                {{ __('firewall-gui::ui.groups.empty') }}
             </div>
         @else
             <div class="table-responsive">

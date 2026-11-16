@@ -14,6 +14,17 @@ return [
         'saved_message' => 'Panel language updated.',
     ],
 
+    'engine' => [
+        'title' => 'Firewall Mode & Blocking Behavior',
+        'subtitle' => 'Choose how the firewall handles traffic that matches or does not match your rules. Logs are always recorded.',
+        'mode_label' => 'Evaluation Mode',
+        'mode_blacklist' => 'Blacklist Only (allow all except Blacklist)',
+        'mode_whitelist' => 'Whitelist Only (allow only Whitelist)',
+        'block_enabled_label' => 'Block unmatched / blacklisted requests (uncheck to allow traffic in Dry-Run / log-only mode)',
+        'save_button' => 'Save Firewall Mode',
+        'saved_message' => 'Firewall mode settings saved.',
+    ],
+
     'notifications' => [
         'title' => 'Email Notification Settings',
         'subtitle' => 'Configure queued email alerts for rules and groups with notifications enabled (configurable cooldown per IP; all accesses are still logged).',
@@ -34,6 +45,7 @@ return [
         'cooldown_label' => 'Notification Cooldown (Hours)',
         'cooldown_help' => 'Send at most 1 email per IP within this window.',
         'enabled_label' => 'Enable Email Notifications',
+        'on_unmatched_block_label' => 'Alert on unmatched block (IP not in Whitelist)',
         'log_access_label' => 'Log Allowed Notify Hits',
         'save_button' => 'Save Settings',
         'saved_message' => 'Notification settings saved.',

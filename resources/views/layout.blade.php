@@ -852,8 +852,8 @@
                 </svg>
             </div>
             <div>
-                <div class="sidebar-brand-title">Firewall GUI</div>
-                <div class="sidebar-brand-sub">Security Control</div>
+                <div class="sidebar-brand-title">{{ __('firewall-gui::ui.nav.brand_title') }}</div>
+                <div class="sidebar-brand-sub">{{ __('firewall-gui::ui.nav.brand_sub') }}</div>
             </div>
         </div>
 
@@ -866,7 +866,7 @@
                     <rect x="14" y="12" width="7" height="9" rx="1"/>
                     <rect x="3" y="16" width="7" height="5" rx="1"/>
                 </svg>
-                <span>Dashboard</span>
+                <span>{{ __('firewall-gui::ui.nav.dashboard') }}</span>
             </a>
 
             <a href="{{ route('firewall-gui.rules.index') }}"
@@ -875,7 +875,7 @@
                     <path d="M9 11l3 3L22 4"/>
                     <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
                 </svg>
-                <span>Rules</span>
+                <span>{{ __('firewall-gui::ui.nav.rules') }}</span>
             </a>
 
             <a href="{{ route('firewall-gui.groups.index') }}"
@@ -883,7 +883,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
                 </svg>
-                <span>Groups</span>
+                <span>{{ __('firewall-gui::ui.nav.groups') }}</span>
             </a>
 
             <a href="{{ route('firewall-gui.logs.index') }}"
@@ -894,7 +894,7 @@
                     <line x1="16" y1="13" x2="8" y2="13"/>
                     <line x1="16" y1="17" x2="8" y2="17"/>
                 </svg>
-                <span>Logs</span>
+                <span>{{ __('firewall-gui::ui.nav.logs') }}</span>
             </a>
 
             <a href="{{ route('firewall-gui.settings.index') }}"
@@ -903,12 +903,12 @@
                     <circle cx="12" cy="12" r="3"/>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                 </svg>
-                <span>Settings</span>
+                <span>{{ __('firewall-gui::ui.nav.settings') }}</span>
             </a>
         </nav>
 
         <div class="sidebar-footer">
-            Mode: <strong>{{ config('firewall-gui.mode', 'blacklist_only') }}</strong>
+            {{ __('firewall-gui::ui.nav.mode') }} <strong>{{ config('firewall-gui.mode', 'blacklist_only') }}</strong>
         </div>
     </aside>
 
@@ -932,23 +932,23 @@
 
             <div class="topbar-right">
                 <span class="ip-pill" title="Your detected client IP address">
-                    Your IP: <code>{{ $resolvedIp }}</code>
+                    {{ __('firewall-gui::ui.nav.your_ip') }} <code>{{ $resolvedIp }}</code>
                 </span>
 
                 @if (! $resolvedEnabled)
                     <span class="badge badge-slate">
                         <span class="status-dot" aria-hidden="true"></span>
-                        Disabled
+                        {{ __('firewall-gui::ui.nav.status_disabled') }}
                     </span>
                 @elseif ($resolvedDryRun)
                     <span class="badge badge-amber">
                         <span class="status-dot" aria-hidden="true"></span>
-                        Dry-Run Active
+                        {{ __('firewall-gui::ui.nav.status_dry_run') }}
                     </span>
                 @else
                     <span class="badge badge-green">
                         <span class="status-dot" aria-hidden="true"></span>
-                        Protected
+                        {{ __('firewall-gui::ui.nav.status_active') }}
                     </span>
                 @endif
             </div>

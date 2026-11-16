@@ -57,12 +57,57 @@ class FirewallManager
 
     public function isDryRun(): bool
     {
+        $engine = $this->getEngineSettings();
+
+        if ($engine['dry_run'] !== null) {
+            return $engine['dry_run'];
+        }
+
         return (bool) config('firewall-gui.dry_run', false);
     }
 
     public function mode(): string
     {
+        $engine = $this->getEngineSettings();
+
+        if ($engine['mode'] !== null) {
+            return $engine['mode'];
+        }
+
         return (string) config('firewall-gui.mode', 'blacklist_only');
+    }
+
+    /**
+     * @return array{mode: ?string, dry_run: ?bool}
+     */
+    public function getEngineSettings(): array
+    {
+        $ttl = (int) config('firewall-gui.cache.ttl', 86400);
+
+        return $this->cacheStore()->remember($this->engineSettingsCacheKey(), $ttl, function (): array {
+            $result = [
+                'mode' => null,
+                'dry_run' => null,
+            ];
+
+            try {
+                $rows = FirewallSetting::query()
+                    ->whereIn('key', ['firewall.mode', 'firewall.dry_run'])
+                    ->pluck('value', 'key');
+            } catch (\Throwable) {
+                return $result;
+            }
+
+            if ($rows->has('firewall.mode') && in_array($rows->get('firewall.mode'), ['blacklist_only', 'whitelist_only'], true)) {
+                $result['mode'] = (string) $rows->get('firewall.mode');
+            }
+
+            if ($rows->has('firewall.dry_run')) {
+                $result['dry_run'] = $rows->get('firewall.dry_run') === '1';
+            }
+
+            return $result;
+        });
     }
 
     public function check(string $ip, ?string $overrideMode = null): FirewallDecision
@@ -208,13 +253,22 @@ class FirewallManager
 
     public function dispatchDailyNotificationIfNeeded(Request $request, FirewallDecision $decision): bool
     {
-        if (! $decision->shouldNotify()) {
+        $settings = $this->getNotificationSettings();
+        $isUnmatchedBlock = $decision->isBlocked()
+            && $decision->matchedRule === null
+            && (bool) ($settings['on_unmatched_block'] ?? config('firewall-gui.notifications.on_unmatched_block', true));
+
+        if (! $decision->shouldNotify() && ! $isUnmatchedBlock) {
             return false;
         }
 
-        $settings = $this->getNotificationSettings();
         $ip = (string) $request->ip();
-        $ruleId = (int) ($decision->notifyRule['id'] ?? 0);
+        $notifyRule = $decision->notifyRule ?? [
+            'id' => 0,
+            'value' => $ip,
+            'label' => 'Not in Whitelist (Default Block)',
+        ];
+        $ruleId = (int) ($notifyRule['id'] ?? 0);
 
         $emailQueued = false;
         $groupCooldown = $decision->notifyGroup['notification_cooldown_hours'] ?? null;
@@ -234,7 +288,7 @@ class FirewallManager
                         path: '/'.ltrim($request->path(), '/'),
                         userAgent: $request->userAgent(),
                         accessedAt: now()->toDateTimeString(),
-                        matchedRule: $decision->notifyRule,
+                        matchedRule: $notifyRule,
                         matchedGroup: $decision->notifyGroup,
                         decisionAction: $decision->action,
                     );
@@ -252,11 +306,11 @@ class FirewallManager
                 'path' => '/'.ltrim($request->path(), '/'),
                 'user_agent' => $request->userAgent(),
                 'action' => FirewallDecision::ACTION_NOTIFIED,
-                'matched_rule_id' => $decision->notifyRule['id'] ?? null,
+                'matched_rule_id' => $notifyRule['id'] ?? null,
                 'matched_group_id' => $decision->notifyGroup['id'] ?? null,
                 'reason' => $this->formatReason(
                     $emailQueued ? 'Access notification queued' : 'Notify rule access (notification cooldown active)',
-                    $decision->notifyRule
+                    $notifyRule
                 ),
                 'created_at' => now(),
             ]);
@@ -292,6 +346,7 @@ class FirewallManager
             ),
             'queue' => config('firewall-gui.notifications.queue') ?: null,
             'cooldown_hours' => max(1, (int) config('firewall-gui.notifications.cooldown_hours', 24)),
+            'on_unmatched_block' => (bool) config('firewall-gui.notifications.on_unmatched_block', true),
             'log_access' => (bool) config('firewall-gui.notifications.log_access', true),
         ];
 
@@ -304,6 +359,7 @@ class FirewallManager
                         'notifications.recipients',
                         'notifications.queue',
                         'notifications.cooldown_hours',
+                        'notifications.on_unmatched_block',
                         'notifications.log_access',
                     ])
                     ->pluck('value', 'key');
@@ -341,6 +397,9 @@ class FirewallManager
             }
             if ($rows->has('notifications.cooldown_hours')) {
                 $defaults['cooldown_hours'] = max(1, (int) $rows->get('notifications.cooldown_hours'));
+            }
+            if ($rows->has('notifications.on_unmatched_block')) {
+                $defaults['on_unmatched_block'] = $rows->get('notifications.on_unmatched_block') === '1';
             }
             if ($rows->has('notifications.log_access')) {
                 $defaults['log_access'] = $rows->get('notifications.log_access') === '1';
@@ -649,6 +708,7 @@ class FirewallManager
         $this->cacheStore()->forget($this->settingsCacheKey());
         $this->cacheStore()->forget($this->mailSettingsCacheKey());
         $this->cacheStore()->forget($this->guiLocaleCacheKey());
+        $this->cacheStore()->forget($this->engineSettingsCacheKey());
 
         if (app()->resolved('mail.manager')) {
             $manager = app('mail.manager');
@@ -810,5 +870,10 @@ class FirewallManager
     protected function guiLocaleCacheKey(): string
     {
         return $this->cacheKey().'.gui_locale';
+    }
+
+    protected function engineSettingsCacheKey(): string
+    {
+        return $this->cacheKey().'.engine_settings';
     }
 }

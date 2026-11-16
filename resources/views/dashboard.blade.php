@@ -1,26 +1,26 @@
 @extends('firewall-gui::layout')
 
-@section('title', 'Dashboard')
+@section('title', __('firewall-gui::ui.dashboard.title'))
 
 @section('content')
     <div class="stats-grid">
         <div class="stat-card stat-green">
-            <div class="stat-label">Whitelist Rules</div>
+            <div class="stat-label">{{ __('firewall-gui::ui.dashboard.whitelist_rules') }}</div>
             <div class="stat-value">{{ number_format($stats['whitelist_count'] ?? 0) }}</div>
         </div>
 
         <div class="stat-card stat-red">
-            <div class="stat-label">Blacklist Rules</div>
+            <div class="stat-label">{{ __('firewall-gui::ui.dashboard.blacklist_rules') }}</div>
             <div class="stat-value">{{ number_format($stats['blacklist_count'] ?? 0) }}</div>
         </div>
 
         <div class="stat-card stat-blue">
-            <div class="stat-label">Rule Groups</div>
+            <div class="stat-label">{{ __('firewall-gui::ui.dashboard.rule_groups') }}</div>
             <div class="stat-value">{{ number_format($stats['groups_count'] ?? 0) }}</div>
         </div>
 
         <div class="stat-card stat-amber">
-            <div class="stat-label">Blocked (24h)</div>
+            <div class="stat-label">{{ __('firewall-gui::ui.dashboard.blocked_24h') }}</div>
             <div class="stat-value">{{ number_format($stats['blocked_24h'] ?? 0) }}</div>
         </div>
     </div>
@@ -28,31 +28,31 @@
     <div class="card">
         <div class="card-body" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
             <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-                <span class="text-muted" style="font-size: 0.85rem; font-weight: 600;">Firewall Engine:</span>
+                <span class="text-muted" style="font-size: 0.85rem; font-weight: 600;">{{ __('firewall-gui::ui.dashboard.engine') }}</span>
                 @if ($isEnabled)
-                    <span class="badge badge-green">Enabled</span>
+                    <span class="badge badge-green">{{ __('firewall-gui::ui.dashboard.enabled') }}</span>
                 @else
-                    <span class="badge badge-slate">Disabled</span>
+                    <span class="badge badge-slate">{{ __('firewall-gui::ui.dashboard.disabled') }}</span>
                 @endif
 
-                <span class="text-muted" style="font-size: 0.85rem; font-weight: 600;">Mode:</span>
+                <span class="text-muted" style="font-size: 0.85rem; font-weight: 600;">{{ __('firewall-gui::ui.dashboard.mode') }}</span>
                 @if ($mode === 'whitelist_only')
-                    <span class="badge badge-blue">Whitelist Only</span>
+                    <span class="badge badge-blue">{{ __('firewall-gui::ui.dashboard.whitelist_only') }}</span>
                 @else
-                    <span class="badge badge-slate">Blacklist Only</span>
+                    <span class="badge badge-slate">{{ __('firewall-gui::ui.dashboard.blacklist_only') }}</span>
                 @endif
 
-                <span class="text-muted" style="font-size: 0.85rem; font-weight: 600;">Dry-Run:</span>
+                <span class="text-muted" style="font-size: 0.85rem; font-weight: 600;">{{ __('firewall-gui::ui.dashboard.dry_run') }}</span>
                 @if ($isDryRun)
-                    <span class="badge badge-amber">Active (Logging Only)</span>
+                    <span class="badge badge-amber">{{ __('firewall-gui::ui.dashboard.dry_run_active') }}</span>
                 @else
-                    <span class="badge badge-slate">Off (Enforcing)</span>
+                    <span class="badge badge-slate">{{ __('firewall-gui::ui.dashboard.dry_run_off') }}</span>
                 @endif
             </div>
 
             <div style="display: flex; gap: 0.5rem;">
-                <a href="{{ route('firewall-gui.rules.index') }}" class="btn btn-secondary btn-sm">Manage Rules</a>
-                <a href="{{ route('firewall-gui.groups.index') }}" class="btn btn-secondary btn-sm">Manage Groups</a>
+                <a href="{{ route('firewall-gui.rules.index') }}" class="btn btn-secondary btn-sm">{{ __('firewall-gui::ui.dashboard.manage_rules') }}</a>
+                <a href="{{ route('firewall-gui.groups.index') }}" class="btn btn-secondary btn-sm">{{ __('firewall-gui::ui.dashboard.manage_groups') }}</a>
             </div>
         </div>
     </div>
@@ -60,15 +60,15 @@
     <div class="card">
         <div class="card-header">
             <div>
-                <h2 class="card-title">Test IP Simulator</h2>
-                <p class="card-subtitle">Simulate how the firewall evaluates an IPv4 or IPv6 address against active rules and groups.</p>
+                <h2 class="card-title">{{ __('firewall-gui::ui.dashboard.simulator_title') }}</h2>
+                <p class="card-subtitle">{{ __('firewall-gui::ui.dashboard.simulator_subtitle') }}</p>
             </div>
         </div>
         <div class="card-body">
             <form method="POST" action="{{ route('firewall-gui.test-ip') }}" class="form-grid">
                 @csrf
                 <div class="form-group" style="grid-column: span 2;">
-                    <label for="test-ip-input">IP Address</label>
+                    <label for="test-ip-input">{{ __('firewall-gui::ui.dashboard.ip_address') }}</label>
                     <input type="text"
                            id="test-ip-input"
                            name="ip"
@@ -78,7 +78,7 @@
                 </div>
 
                 <div class="form-group">
-                    <button type="submit" class="btn btn-primary">Evaluate IP</button>
+                    <button type="submit" class="btn btn-primary">{{ __('firewall-gui::ui.dashboard.evaluate_ip') }}</button>
                 </div>
             </form>
 
@@ -86,24 +86,24 @@
                 <div style="margin-top: 1.25rem; padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); background-color: var(--bg-subtle);">
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;">
                         <div style="display: flex; align-items: center; gap: 0.6rem;">
-                            <span style="font-weight: 600;">Result for <code class="mono">{{ $testIp ?? '' }}</code>:</span>
+                            <span style="font-weight: 600;">{{ __('firewall-gui::ui.dashboard.result_for') }} <code class="mono">{{ $testIp ?? '' }}</code>:</span>
                             @if ($testResult->action === \FirewallGui\LaravelFirewallGui\Support\FirewallDecision::ACTION_ALLOWED)
-                                <span class="badge badge-green">Allowed</span>
+                                <span class="badge badge-green">{{ __('firewall-gui::ui.dashboard.allowed') }}</span>
                             @elseif ($testResult->action === \FirewallGui\LaravelFirewallGui\Support\FirewallDecision::ACTION_DRY_RUN_BLOCKED)
-                                <span class="badge badge-amber">Dry-Run Blocked</span>
+                                <span class="badge badge-amber">{{ __('firewall-gui::ui.dashboard.dry_run_blocked') }}</span>
                             @else
-                                <span class="badge badge-red">Blocked</span>
+                                <span class="badge badge-red">{{ __('firewall-gui::ui.dashboard.blocked') }}</span>
                             @endif
                         </div>
                     </div>
 
                     <p style="margin: 0.6rem 0 0; font-size: 0.9rem; color: var(--text-secondary);">
-                        <strong>Reason:</strong> {{ $testResult->reason }}
+                        <strong>{{ __('firewall-gui::ui.dashboard.reason') }}</strong> {{ $testResult->reason }}
                     </p>
 
                     @if (! empty($testResult->matchedRule))
                         <p style="margin: 0.35rem 0 0; font-size: 0.85rem; color: var(--text-secondary);">
-                            <strong>Matched Rule:</strong>
+                            <strong>{{ __('firewall-gui::ui.dashboard.matched_rule') }}</strong>
                             <code class="mono">{{ $testResult->matchedRule['value'] ?? '—' }}</code>
                             @if (! empty($testResult->matchedRule['rule_type']))
                                 <span class="badge badge-slate">{{ strtoupper($testResult->matchedRule['rule_type']) }}</span>
@@ -116,7 +116,7 @@
 
                     @if (! empty($testResult->matchedGroup))
                         <p style="margin: 0.35rem 0 0; font-size: 0.85rem; color: var(--text-secondary);">
-                            <strong>Matched Group:</strong>
+                            <strong>{{ __('firewall-gui::ui.dashboard.matched_group') }}</strong>
                             {{ $testResult->matchedGroup['name'] ?? '—' }}
                             @if (! empty($testResult->matchedGroup['type']))
                                 <span class="badge {{ $testResult->matchedGroup['type'] === 'whitelist' ? 'badge-green' : 'badge-red' }}">
@@ -133,26 +133,26 @@
     <div class="card">
         <div class="card-header">
             <div>
-                <h2 class="card-title">Recent Blocked Requests</h2>
-                <p class="card-subtitle">Latest blocked and dry-run blocked traffic.</p>
+                <h2 class="card-title">{{ __('firewall-gui::ui.dashboard.recent_title') }}</h2>
+                <p class="card-subtitle">{{ __('firewall-gui::ui.dashboard.recent_subtitle') }}</p>
             </div>
-            <a href="{{ route('firewall-gui.logs.index') }}" class="btn btn-secondary btn-sm">View All Logs</a>
+            <a href="{{ route('firewall-gui.logs.index') }}" class="btn btn-secondary btn-sm">{{ __('firewall-gui::ui.dashboard.view_all_logs') }}</a>
         </div>
 
         @if ($recentLogs->isEmpty())
             <div class="empty-state">
-                No blocked requests have been logged yet.
+                {{ __('firewall-gui::ui.dashboard.empty_logs') }}
             </div>
         @else
             <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
-                            <th>Timestamp</th>
-                            <th>IP Address</th>
-                            <th>Request</th>
-                            <th>Action</th>
-                            <th>Reason</th>
+                            <th>{{ __('firewall-gui::ui.dashboard.col_timestamp') }}</th>
+                            <th>{{ __('firewall-gui::ui.dashboard.col_ip') }}</th>
+                            <th>{{ __('firewall-gui::ui.dashboard.col_request') }}</th>
+                            <th>{{ __('firewall-gui::ui.dashboard.col_action') }}</th>
+                            <th>{{ __('firewall-gui::ui.dashboard.col_reason') }}</th>
                         </tr>
                     </thead>
                     <tbody>
