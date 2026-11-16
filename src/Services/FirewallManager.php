@@ -217,10 +217,12 @@ class FirewallManager
         $ruleId = (int) ($decision->notifyRule['id'] ?? 0);
 
         $emailQueued = false;
-        $cooldownHours = max(1, (int) ($settings['cooldown_hours'] ?? config('firewall-gui.notifications.cooldown_hours', 24)));
+        $groupCooldown = $decision->notifyGroup['notification_cooldown_hours'] ?? null;
+        $cooldownHours = max(1, (int) ($groupCooldown ?: ($settings['cooldown_hours'] ?? config('firewall-gui.notifications.cooldown_hours', 24))));
 
         if ($settings['enabled']) {
-            $recipients = $this->parseNotificationRecipients($settings['to']);
+            $groupId = isset($decision->notifyGroup['id']) ? (int) $decision->notifyGroup['id'] : null;
+            $recipients = $this->resolveRecipientsForGroup($groupId, $settings);
 
             if ($recipients !== []) {
                 $cooldownKey = sprintf('firewall_gui.notified.%s', md5($ip.'|'.$ruleId));
@@ -264,17 +266,30 @@ class FirewallManager
     }
 
     /**
-     * @return array{enabled: bool, to: string, queue: ?string, cooldown_hours: int, log_access: bool}
+     * @return array{
+     *     enabled: bool,
+     *     to: string,
+     *     recipients: array<int, array{email: string, group_ids: array<int, int>}>,
+     *     queue: ?string,
+     *     cooldown_hours: int,
+     *     log_access: bool
+     * }
      */
     public function getNotificationSettings(): array
     {
         $ttl = (int) config('firewall-gui.cache.ttl', 86400);
 
+        $defaultTo = is_array($to = config('firewall-gui.notifications.to', ''))
+            ? implode(', ', $to)
+            : (string) $to;
+
         $defaults = [
             'enabled' => (bool) config('firewall-gui.notifications.enabled', true),
-            'to' => is_array($to = config('firewall-gui.notifications.to', ''))
-                ? implode(', ', $to)
-                : (string) $to,
+            'to' => $defaultTo,
+            'recipients' => array_map(
+                fn (string $email): array => ['email' => $email, 'group_ids' => []],
+                $this->parseNotificationRecipients($defaultTo)
+            ),
             'queue' => config('firewall-gui.notifications.queue') ?: null,
             'cooldown_hours' => max(1, (int) config('firewall-gui.notifications.cooldown_hours', 24)),
             'log_access' => (bool) config('firewall-gui.notifications.log_access', true),
@@ -286,6 +301,7 @@ class FirewallManager
                     ->whereIn('key', [
                         'notifications.enabled',
                         'notifications.to',
+                        'notifications.recipients',
                         'notifications.queue',
                         'notifications.cooldown_hours',
                         'notifications.log_access',
@@ -300,6 +316,25 @@ class FirewallManager
             }
             if ($rows->has('notifications.to')) {
                 $defaults['to'] = (string) $rows->get('notifications.to');
+                $defaults['recipients'] = array_map(
+                    fn (string $email): array => ['email' => $email, 'group_ids' => []],
+                    $this->parseNotificationRecipients($defaults['to'])
+                );
+            }
+            if ($rows->has('notifications.recipients')) {
+                $decoded = json_decode((string) $rows->get('notifications.recipients'), true);
+                if (is_array($decoded)) {
+                    $defaults['recipients'] = array_values(array_filter(array_map(function ($item): ?array {
+                        if (! is_array($item) || empty($item['email'])) {
+                            return null;
+                        }
+
+                        return [
+                            'email' => trim((string) $item['email']),
+                            'group_ids' => array_values(array_unique(array_map('intval', (array) ($item['group_ids'] ?? [])))),
+                        ];
+                    }, $decoded)));
+                }
             }
             if ($rows->has('notifications.queue')) {
                 $defaults['queue'] = $rows->get('notifications.queue') ?: null;
@@ -315,6 +350,36 @@ class FirewallManager
         });
 
         return array_merge($defaults, $cached);
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     * @return array<int, string>
+     */
+    protected function resolveRecipientsForGroup(?int $groupId, array $settings): array
+    {
+        $recipients = $settings['recipients'] ?? [];
+
+        if (! is_array($recipients) || $recipients === []) {
+            return $this->parseNotificationRecipients($settings['to'] ?? '');
+        }
+
+        $matched = [];
+
+        foreach ($recipients as $entry) {
+            $email = trim((string) ($entry['email'] ?? ''));
+            if ($email === '') {
+                continue;
+            }
+
+            $groupIds = array_values(array_map('intval', (array) ($entry['group_ids'] ?? [])));
+
+            if ($groupIds === [] || ($groupId !== null && in_array($groupId, $groupIds, true))) {
+                $matched[] = $email;
+            }
+        }
+
+        return array_values(array_unique($matched));
     }
 
     /**
@@ -557,11 +622,33 @@ class FirewallManager
         ]);
     }
 
+    public function getGuiLocale(): ?string
+    {
+        $ttl = (int) config('firewall-gui.cache.ttl', 86400);
+
+        $locale = $this->cacheStore()->remember($this->guiLocaleCacheKey(), $ttl, function (): string {
+            $default = (string) (config('firewall-gui.gui.locale') ?: 'auto');
+
+            try {
+                $value = FirewallSetting::query()
+                    ->where('key', 'gui.locale')
+                    ->value('value');
+            } catch (\Throwable) {
+                return $default;
+            }
+
+            return $value ? (string) $value : $default;
+        });
+
+        return in_array($locale, ['en', 'it'], true) ? $locale : null;
+    }
+
     public function clearCache(): void
     {
         $this->cacheStore()->forget($this->cacheKey());
         $this->cacheStore()->forget($this->settingsCacheKey());
         $this->cacheStore()->forget($this->mailSettingsCacheKey());
+        $this->cacheStore()->forget($this->guiLocaleCacheKey());
 
         if (app()->resolved('mail.manager')) {
             $manager = app('mail.manager');
@@ -615,6 +702,7 @@ class FirewallManager
                         'name' => $rule->group->name,
                         'slug' => $rule->group->slug,
                         'type' => $rule->group->type,
+                        'notification_cooldown_hours' => $rule->group->notification_cooldown_hours,
                     ] : null,
                 ];
             }
@@ -717,5 +805,10 @@ class FirewallManager
     protected function mailSettingsCacheKey(): string
     {
         return $this->cacheKey().'.mail_settings';
+    }
+
+    protected function guiLocaleCacheKey(): string
+    {
+        return $this->cacheKey().'.gui_locale';
     }
 }

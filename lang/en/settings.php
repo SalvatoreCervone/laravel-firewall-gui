@@ -3,18 +3,31 @@
 return [
     'title' => 'Settings',
 
+    'language' => [
+        'title' => 'Panel Language',
+        'subtitle' => 'Choose the language used for the Firewall GUI.',
+        'label' => 'Language',
+        'auto' => 'Auto (Follow Laravel App Locale)',
+        'en' => 'English',
+        'it' => 'Italiano',
+        'save_button' => 'Save Language',
+        'saved_message' => 'Panel language updated.',
+    ],
+
     'notifications' => [
         'title' => 'Email Notification Settings',
         'subtitle' => 'Configure queued email alerts for rules and groups with notifications enabled (configurable cooldown per IP; all accesses are still logged).',
         'recipients_label' => 'Recipient Email(s)',
         'col_index' => '#',
         'col_email' => 'Email Address',
+        'col_groups' => 'Groups (empty = receive all)',
         'col_action' => 'Action',
+        'all_groups_hint' => 'All (no groups defined)',
         'email_placeholder' => 'security@example.com',
         'remove_button' => 'Remove',
         'empty_recipients' => 'No recipient emails configured yet. Click "+ Add Email" to add one.',
         'add_email_button' => '+ Add Email',
-        'recipients_help' => 'Add one email address per row.',
+        'recipients_help' => 'Add one email address per row. Leave all groups unchecked to receive alerts for all groups and rules.',
         'queue_label' => 'Queue Name (optional)',
         'queue_placeholder' => 'default',
         'queue_help' => 'Leave blank to use Laravel\'s default queue.',

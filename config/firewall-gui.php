@@ -152,6 +152,7 @@ return [
         'protect_with_firewall' => false,
         'prevent_self_lockout' => true,
         'per_page' => 20,
+        'locale' => env('FIREWALL_GUI_LOCALE', 'auto'), // 'auto', 'en', 'it'
     ],
 
 ];

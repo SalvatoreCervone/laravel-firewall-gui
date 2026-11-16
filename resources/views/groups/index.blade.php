@@ -42,6 +42,17 @@
                            step="1">
                 </div>
 
+                <div class="form-group">
+                    <label for="group-cooldown">Email Cooldown (Hours)</label>
+                    <input type="number"
+                           id="group-cooldown"
+                           name="notification_cooldown_hours"
+                           min="1"
+                           max="8760"
+                           value="{{ old('notification_cooldown_hours') }}"
+                           placeholder="Default ({{ $globalCooldownHours ?? 24 }}h)">
+                </div>
+
                 <div class="form-group" style="grid-column: span 2;">
                     <label for="group-description">Description (optional)</label>
                     <input type="text"
@@ -61,7 +72,7 @@
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="notify_on_hit" value="1" {{ old('notify_on_hit', false) ? 'checked' : '' }}>
-                        <span>Email alert (1st hit/day)</span>
+                        <span>Email alert on hit</span>
                     </label>
                 </div>
 

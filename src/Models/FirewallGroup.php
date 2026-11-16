@@ -13,6 +13,8 @@ use Illuminate\Support\Str;
  * @property string $type
  * @property string|null $description
  * @property bool $is_active
+ * @property bool $notify_on_hit
+ * @property int|null $notification_cooldown_hours
  * @property int $priority
  */
 class FirewallGroup extends Model
@@ -26,12 +28,14 @@ class FirewallGroup extends Model
         'description',
         'is_active',
         'notify_on_hit',
+        'notification_cooldown_hours',
         'priority',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'notify_on_hit' => 'boolean',
+        'notification_cooldown_hours' => 'integer',
         'priority' => 'integer',
     ];
 

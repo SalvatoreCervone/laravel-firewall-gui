@@ -3,6 +3,7 @@
 namespace FirewallGui\LaravelFirewallGui\Http\Controllers;
 
 use FirewallGui\LaravelFirewallGui\Mail\FirewallAccessNotification;
+use FirewallGui\LaravelFirewallGui\Models\FirewallGroup;
 use FirewallGui\LaravelFirewallGui\Models\FirewallSetting;
 use FirewallGui\LaravelFirewallGui\Services\FirewallManager;
 use Illuminate\Http\RedirectResponse;
@@ -23,8 +24,32 @@ class SettingsController extends Controller
         return view('firewall-gui::settings.index', [
             'settings' => $this->firewall->getNotificationSettings(),
             'mailSettings' => $this->firewall->getMailSettings(),
+            'guiLocale' => $this->firewall->getGuiLocale() ?? 'auto',
+            'groups' => FirewallGroup::query()->orderBy('name')->get(['id', 'name', 'type']),
             'currentIp' => (string) $request->ip(),
         ]);
+    }
+
+    public function updateLocale(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'gui_locale' => ['required', 'in:auto,en,it'],
+        ]);
+
+        FirewallSetting::query()->updateOrCreate(
+            ['key' => 'gui.locale'],
+            ['value' => $validated['gui_locale']]
+        );
+
+        $this->firewall->clearCache();
+
+        if (in_array($validated['gui_locale'], ['en', 'it'], true)) {
+            app()->setLocale($validated['gui_locale']);
+        }
+
+        return redirect()
+            ->back()
+            ->with('success', __('firewall-gui::settings.language.saved_message'));
     }
 
     public function update(Request $request): RedirectResponse
@@ -34,42 +59,68 @@ class SettingsController extends Controller
             'notifications_to' => ['nullable', 'string'],
             'notifications_emails' => ['nullable', 'array'],
             'notifications_emails.*' => ['nullable', 'string', 'max:255'],
+            'notifications_recipients' => ['nullable', 'array'],
+            'notifications_recipients.*.email' => ['nullable', 'string', 'max:255'],
+            'notifications_recipients.*.group_ids' => ['nullable', 'array'],
+            'notifications_recipients.*.group_ids.*' => ['integer'],
             'notifications_emails_present' => ['nullable', 'boolean'],
             'notifications_queue' => ['nullable', 'string', 'max:100'],
             'notifications_cooldown_hours' => ['nullable', 'integer', 'min:1', 'max:8760'],
             'notifications_log_access' => ['nullable', 'boolean'],
         ]);
 
-        $usingTableInput = $request->boolean('notifications_emails_present') || $request->has('notifications_emails');
+        $usingTableInput = $request->boolean('notifications_emails_present')
+            || $request->has('notifications_recipients')
+            || $request->has('notifications_emails');
 
-        if ($usingTableInput) {
+        $recipients = [];
+
+        if ($request->has('notifications_recipients')) {
+            $seen = [];
+            foreach ((array) ($validated['notifications_recipients'] ?? []) as $row) {
+                $email = trim((string) ($row['email'] ?? ''));
+                if ($email === '' || isset($seen[strtolower($email)])) {
+                    continue;
+                }
+                $seen[strtolower($email)] = true;
+                $recipients[] = [
+                    'email' => $email,
+                    'group_ids' => array_values(array_unique(array_map('intval', (array) ($row['group_ids'] ?? [])))),
+                ];
+            }
+        } elseif ($usingTableInput) {
             $rawList = $validated['notifications_emails'] ?? [];
             $emails = array_values(array_unique(array_filter(
                 array_map(fn ($e): string => trim((string) $e), $rawList),
                 fn (string $e): bool => $e !== ''
             )));
+            $recipients = array_map(fn (string $e): array => ['email' => $e, 'group_ids' => []], $emails);
         } else {
             $rawEmails = (string) ($validated['notifications_to'] ?? '');
             $emails = array_values(array_unique(array_filter(
                 array_map('trim', explode(',', $rawEmails)),
                 fn (string $e): bool => $e !== ''
             )));
+            $recipients = array_map(fn (string $e): array => ['email' => $e, 'group_ids' => []], $emails);
         }
 
         $errorKey = $usingTableInput ? 'notifications_emails' : 'notifications_to';
 
-        foreach ($emails as $email) {
-            if (Validator::make(['email' => $email], ['email' => 'email'])->fails()) {
+        foreach ($recipients as $entry) {
+            if (Validator::make(['email' => $entry['email']], ['email' => 'email'])->fails()) {
                 return redirect()
                     ->back()
                     ->withInput()
-                    ->withErrors([$errorKey => __('firewall-gui::settings.notifications.invalid_email', ['email' => $email])]);
+                    ->withErrors([$errorKey => __('firewall-gui::settings.notifications.invalid_email', ['email' => $entry['email']])]);
             }
         }
 
+        $emailsList = array_map(fn (array $entry): string => $entry['email'], $recipients);
+
         $pairs = [
             'notifications.enabled' => $request->boolean('notifications_enabled') ? '1' : '0',
-            'notifications.to' => implode(', ', $emails),
+            'notifications.to' => implode(', ', $emailsList),
+            'notifications.recipients' => json_encode($recipients, JSON_THROW_ON_ERROR),
             'notifications.queue' => trim((string) ($validated['notifications_queue'] ?? '')) ?: null,
             'notifications.log_access' => $request->boolean('notifications_log_access') ? '1' : '0',
         ];

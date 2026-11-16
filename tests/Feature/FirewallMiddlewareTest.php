@@ -162,4 +162,86 @@ class FirewallMiddlewareTest extends TestCase
                 && $mail->ipAddress === '203.0.113.55';
         });
     }
+
+    public function test_group_notification_cooldown_hours_overrides_global_cooldown(): void
+    {
+        Mail::fake();
+
+        config()->set('firewall-gui.mode', 'whitelist_only');
+        config()->set('firewall-gui.notifications.to', 'security@example.com');
+        config()->set('firewall-gui.notifications.cooldown_hours', 24);
+
+        $group = \FirewallGui\LaravelFirewallGui\Models\FirewallGroup::query()->create([
+            'name' => 'Consultants 3h',
+            'type' => 'notify',
+            'is_active' => true,
+            'notify_on_hit' => true,
+            'notification_cooldown_hours' => 3,
+        ]);
+
+        Firewall::notify('198.51.100.10', 'Consultant IP', $group->id);
+
+        // t = 0: 1st email
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.10'])
+            ->get('/protected-endpoint')
+            ->assertOk();
+
+        // t + 2h: still within 3h group cooldown -> still 1 email
+        $this->travel(2)->hours();
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.10'])
+            ->get('/protected-endpoint')
+            ->assertOk();
+
+        Mail::assertQueued(FirewallAccessNotification::class, 1);
+
+        // t + 4h: past 3h group cooldown (even though global is 24h) -> 2nd email
+        $this->travel(2)->hours();
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.10'])
+            ->get('/protected-endpoint')
+            ->assertOk();
+
+        Mail::assertQueued(FirewallAccessNotification::class, 2);
+    }
+
+    public function test_recipient_group_filter_sends_to_matching_group_and_empty_group_recipients(): void
+    {
+        Mail::fake();
+
+        config()->set('firewall-gui.mode', 'whitelist_only');
+
+        $groupA = \FirewallGui\LaravelFirewallGui\Models\FirewallGroup::query()->create([
+            'name' => 'Group A',
+            'type' => 'notify',
+            'is_active' => true,
+            'notify_on_hit' => true,
+        ]);
+
+        $groupB = \FirewallGui\LaravelFirewallGui\Models\FirewallGroup::query()->create([
+            'name' => 'Group B',
+            'type' => 'notify',
+            'is_active' => true,
+            'notify_on_hit' => true,
+        ]);
+
+        \FirewallGui\LaravelFirewallGui\Models\FirewallSetting::query()->updateOrCreate(
+            ['key' => 'notifications.recipients'],
+            ['value' => json_encode([
+                ['email' => 'all@example.com', 'group_ids' => []],
+                ['email' => 'only-a@example.com', 'group_ids' => [$groupA->id]],
+                ['email' => 'only-b@example.com', 'group_ids' => [$groupB->id]],
+            ])]
+        );
+
+        Firewall::notify('198.51.100.20', 'IP in Group A', $groupA->id);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.20'])
+            ->get('/protected-endpoint')
+            ->assertOk();
+
+        Mail::assertQueued(FirewallAccessNotification::class, function (FirewallAccessNotification $mail): bool {
+            return $mail->hasTo('all@example.com')
+                && $mail->hasTo('only-a@example.com')
+                && ! $mail->hasTo('only-b@example.com');
+        });
+    }
 }

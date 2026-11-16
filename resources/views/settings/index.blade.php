@@ -6,6 +6,38 @@
     <div class="card">
         <div class="card-header">
             <div>
+                <h2 class="card-title">{{ __('firewall-gui::settings.language.title') }}</h2>
+                <p class="card-subtitle">{{ __('firewall-gui::settings.language.subtitle') }}</p>
+            </div>
+        </div>
+        <div class="card-body">
+            @php
+                $selectedLocale = old('gui_locale', $guiLocale ?? 'auto');
+            @endphp
+
+            <form method="POST" action="{{ route('firewall-gui.settings.locale.update') }}" class="settings-inline-row">
+                @csrf
+                @method('PUT')
+
+                <div class="form-group">
+                    <label for="gui-locale">{{ __('firewall-gui::settings.language.label') }}</label>
+                    <select id="gui-locale" name="gui_locale">
+                        <option value="auto" {{ $selectedLocale === 'auto' ? 'selected' : '' }}>{{ __('firewall-gui::settings.language.auto') }}</option>
+                        <option value="en" {{ $selectedLocale === 'en' ? 'selected' : '' }}>{{ __('firewall-gui::settings.language.en') }}</option>
+                        <option value="it" {{ $selectedLocale === 'it' ? 'selected' : '' }}>{{ __('firewall-gui::settings.language.it') }}</option>
+                    </select>
+                </div>
+
+                <div>
+                    <button type="submit" class="btn btn-primary">{{ __('firewall-gui::settings.language.save_button') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div>
                 <h2 class="card-title">{{ __('firewall-gui::settings.notifications.title') }}</h2>
                 <p class="card-subtitle">
                     {{ __('firewall-gui::settings.notifications.subtitle') }}
@@ -18,13 +50,17 @@
                 @method('PUT')
 
                 @php
-                    $recipientEmails = old('notifications_emails');
-                    if (! is_array($recipientEmails)) {
-                        $recipientEmails = array_values(array_filter(
-                            array_map('trim', explode(',', (string) ($settings['to'] ?? ''))),
-                            fn (string $email): bool => $email !== ''
-                        ));
+                    $recipientRows = old('notifications_recipients');
+                    if (! is_array($recipientRows)) {
+                        $recipientRows = $settings['recipients'] ?? [];
+                        if ($recipientRows === [] && ! empty($settings['to'])) {
+                            $recipientRows = array_map(
+                                fn (string $email): array => ['email' => $email, 'group_ids' => []],
+                                array_values(array_filter(array_map('trim', explode(',', (string) $settings['to']))))
+                            );
+                        }
                     }
+                    $availableGroups = $groups ?? collect();
                 @endphp
 
                 <div class="form-group form-group-full">
@@ -36,20 +72,42 @@
                             <thead>
                                 <tr>
                                     <th style="width: 3rem;">{{ __('firewall-gui::settings.notifications.col_index') }}</th>
-                                    <th>{{ __('firewall-gui::settings.notifications.col_email') }}</th>
+                                    <th style="min-width: 220px;">{{ __('firewall-gui::settings.notifications.col_email') }}</th>
+                                    <th>{{ __('firewall-gui::settings.notifications.col_groups') }}</th>
                                     <th style="width: 7rem; text-align: right;">{{ __('firewall-gui::settings.notifications.col_action') }}</th>
                                 </tr>
                             </thead>
                             <tbody id="recipient-emails-tbody">
-                                @forelse ($recipientEmails as $index => $email)
+                                @forelse ($recipientRows as $index => $row)
+                                    @php
+                                        $rowEmail = is_array($row) ? (string) ($row['email'] ?? '') : (string) $row;
+                                        $rowGroupIds = is_array($row) ? array_map('intval', (array) ($row['group_ids'] ?? [])) : [];
+                                    @endphp
                                     <tr data-email-row>
-                                        <td data-row-index class="text-muted">{{ $index + 1 }}</td>
+                                        <td data-row-index class="text-muted">{{ $loop->iteration }}</td>
                                         <td>
                                             <input type="email"
-                                                   name="notifications_emails[]"
-                                                   value="{{ $email }}"
+                                                   name="notifications_recipients[{{ $index }}][email]"
+                                                   value="{{ $rowEmail }}"
                                                    placeholder="{{ __('firewall-gui::settings.notifications.email_placeholder') }}"
                                                    required>
+                                        </td>
+                                        <td>
+                                            @if ($availableGroups->isEmpty())
+                                                <span class="form-hint">{{ __('firewall-gui::settings.notifications.all_groups_hint') }}</span>
+                                            @else
+                                                <div class="recipient-groups">
+                                                    @foreach ($availableGroups as $group)
+                                                        <label class="checkbox-label">
+                                                            <input type="checkbox"
+                                                                   name="notifications_recipients[{{ $index }}][group_ids][]"
+                                                                   value="{{ $group->id }}"
+                                                                   {{ in_array((int) $group->id, $rowGroupIds, true) ? 'checked' : '' }}>
+                                                            <span>{{ $group->name }}</span>
+                                                        </label>
+                                                    @endforeach
+                                                </div>
+                                            @endif
                                         </td>
                                         <td style="text-align: right;">
                                             <button type="button" class="btn btn-outline-danger btn-sm" data-remove-email>
@@ -59,7 +117,7 @@
                                     </tr>
                                 @empty
                                     <tr id="recipient-emails-empty">
-                                        <td colspan="3" class="text-muted" style="text-align: center; padding: 1rem;">
+                                        <td colspan="4" class="text-muted" style="text-align: center; padding: 1rem;">
                                             {{ __('firewall-gui::settings.notifications.empty_recipients') }}
                                         </td>
                                     </tr>
@@ -273,6 +331,9 @@
             const emptyText = @json(__('firewall-gui::settings.notifications.empty_recipients'));
             const emailPlaceholder = @json(__('firewall-gui::settings.notifications.email_placeholder'));
             const removeText = @json(__('firewall-gui::settings.notifications.remove_button'));
+            const allGroupsHint = @json(__('firewall-gui::settings.notifications.all_groups_hint'));
+            const availableGroups = @json($availableGroups->map(fn ($g) => ['id' => $g->id, 'name' => $g->name])->values());
+            let nextRecipientIndex = {{ count($recipientRows) }};
 
             if (tbody && addButton) {
                 function syncRowNumbers() {
@@ -288,7 +349,7 @@
                         const tr = document.createElement('tr');
                         tr.id = 'recipient-emails-empty';
                         const td = document.createElement('td');
-                        td.colSpan = 3;
+                        td.colSpan = 4;
                         td.className = 'text-muted';
                         td.style.textAlign = 'center';
                         td.style.padding = '1rem';
@@ -304,6 +365,7 @@
                     const emptyRow = document.getElementById('recipient-emails-empty');
                     if (emptyRow) emptyRow.remove();
 
+                    const rowIdx = nextRecipientIndex++;
                     const tr = document.createElement('tr');
                     tr.setAttribute('data-email-row', '');
 
@@ -314,11 +376,36 @@
                     const tdInput = document.createElement('td');
                     const input = document.createElement('input');
                     input.type = 'email';
-                    input.name = 'notifications_emails[]';
+                    input.name = 'notifications_recipients[' + rowIdx + '][email]';
                     input.value = '';
                     input.placeholder = emailPlaceholder;
                     input.required = true;
                     tdInput.appendChild(input);
+
+                    const tdGroups = document.createElement('td');
+                    if (!availableGroups.length) {
+                        const span = document.createElement('span');
+                        span.className = 'form-hint';
+                        span.textContent = allGroupsHint;
+                        tdGroups.appendChild(span);
+                    } else {
+                        const wrap = document.createElement('div');
+                        wrap.className = 'recipient-groups';
+                        availableGroups.forEach(function (group) {
+                            const label = document.createElement('label');
+                            label.className = 'checkbox-label';
+                            const cb = document.createElement('input');
+                            cb.type = 'checkbox';
+                            cb.name = 'notifications_recipients[' + rowIdx + '][group_ids][]';
+                            cb.value = String(group.id);
+                            const text = document.createElement('span');
+                            text.textContent = group.name;
+                            label.appendChild(cb);
+                            label.appendChild(text);
+                            wrap.appendChild(label);
+                        });
+                        tdGroups.appendChild(wrap);
+                    }
 
                     const tdAction = document.createElement('td');
                     tdAction.style.textAlign = 'right';
@@ -331,6 +418,7 @@
 
                     tr.appendChild(tdIndex);
                     tr.appendChild(tdInput);
+                    tr.appendChild(tdGroups);
                     tr.appendChild(tdAction);
                     tbody.appendChild(tr);
                     syncRowNumbers();

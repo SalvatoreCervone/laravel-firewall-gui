@@ -499,6 +499,17 @@
             flex: 1 1 260px;
         }
 
+        .recipient-groups {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem 0.75rem;
+        }
+
+        .recipient-groups .checkbox-label {
+            padding: 0.15rem 0;
+            font-size: 0.8rem;
+        }
+
         label {
             font-size: 0.825rem;
             font-weight: 600;

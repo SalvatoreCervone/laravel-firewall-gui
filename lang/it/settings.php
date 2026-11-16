@@ -3,18 +3,31 @@
 return [
     'title' => 'Impostazioni',
 
+    'language' => [
+        'title' => 'Lingua Pannello',
+        'subtitle' => 'Scegli la lingua utilizzata nell\'interfaccia del Firewall.',
+        'label' => 'Lingua',
+        'auto' => 'Automatica (Segue la lingua dell\'app Laravel)',
+        'en' => 'English',
+        'it' => 'Italiano',
+        'save_button' => 'Salva Lingua',
+        'saved_message' => 'Lingua del pannello aggiornata.',
+    ],
+
     'notifications' => [
         'title' => 'Impostazioni Notifiche Email',
         'subtitle' => 'Configura gli avvisi email in coda per regole e gruppi con notifiche attive (intervallo configurabile per IP; tutti gli accessi restano registrati).',
         'recipients_label' => 'Email Destinatari',
         'col_index' => '#',
         'col_email' => 'Indirizzo Email',
+        'col_groups' => 'Gruppi (vuoto = riceve tutto)',
         'col_action' => 'Azione',
+        'all_groups_hint' => 'Tutti (nessun gruppo creato)',
         'email_placeholder' => 'sicurezza@esempio.it',
         'remove_button' => 'Rimuovi',
         'empty_recipients' => 'Nessun destinatario configurato. Clicca "+ Aggiungi Email" per inserirne uno.',
         'add_email_button' => '+ Aggiungi Email',
-        'recipients_help' => 'Inserisci un indirizzo email per riga.',
+        'recipients_help' => 'Inserisci un indirizzo email per riga. Se non selezioni nessun gruppo, riceverà le segnalazioni di tutti i gruppi e regole.',
         'queue_label' => 'Nome Coda (opzionale)',
         'queue_placeholder' => 'default',
         'queue_help' => 'Lascia vuoto per usare la coda predefinita di Laravel.',

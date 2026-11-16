@@ -391,4 +391,47 @@ class GuiControllerTest extends TestCase
             ->assertSee('Impostazioni Server Mail')
             ->assertSee('Invia Email di Test');
     }
+
+    public function test_settings_page_can_switch_panel_language_from_ui(): void
+    {
+        $this->put('/firewall/settings/locale', [
+            'gui_locale' => 'it',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('firewall_settings', [
+            'key' => 'gui.locale',
+            'value' => 'it',
+        ]);
+
+        $this->get('/firewall/settings')
+            ->assertOk()
+            ->assertSee('Lingua Pannello')
+            ->assertSee('Impostazioni Notifiche Email');
+    }
+
+    public function test_settings_page_saves_per_recipient_group_filters(): void
+    {
+        $groupA = FirewallGroup::query()->create([
+            'name' => 'VIP Partners',
+            'type' => 'notify',
+            'is_active' => true,
+            'notify_on_hit' => true,
+        ]);
+
+        $this->put('/firewall/settings', [
+            'notifications_enabled' => '1',
+            'notifications_emails_present' => '1',
+            'notifications_recipients' => [
+                ['email' => 'all@example.com', 'group_ids' => []],
+                ['email' => 'vip@example.com', 'group_ids' => [$groupA->id]],
+            ],
+            'notifications_log_access' => '1',
+        ])->assertRedirect();
+
+        $settings = app(\FirewallGui\LaravelFirewallGui\Services\FirewallManager::class)->getNotificationSettings();
+        $this->assertSame('all@example.com, vip@example.com', $settings['to']);
+        $this->assertCount(2, $settings['recipients']);
+        $this->assertSame([], $settings['recipients'][0]['group_ids']);
+        $this->assertSame([$groupA->id], $settings['recipients'][1]['group_ids']);
+    }
 }

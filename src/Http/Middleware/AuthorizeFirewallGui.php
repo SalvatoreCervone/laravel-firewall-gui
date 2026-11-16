@@ -15,6 +15,10 @@ class AuthorizeFirewallGui
             abort(403, 'Unauthorized access to Firewall GUI.');
         }
 
+        if (($locale = app(FirewallManager::class)->getGuiLocale()) !== null) {
+            app()->setLocale($locale);
+        }
+
         return $next($request);
     }
 }
