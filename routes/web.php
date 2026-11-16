@@ -28,6 +28,7 @@ Route::group([
 
     Route::get('/groups', [GroupController::class, 'index'])->name('groups.index');
     Route::post('/groups', [GroupController::class, 'store'])->name('groups.store');
+    Route::put('/groups/default-rule', [GroupController::class, 'updateDefaultRule'])->name('groups.default-rule.update');
     Route::get('/groups/{group}', [GroupController::class, 'show'])->name('groups.show');
     Route::put('/groups/{group}', [GroupController::class, 'update'])->name('groups.update');
     Route::patch('/groups/{group}/toggle', [GroupController::class, 'toggle'])->name('groups.toggle');
@@ -40,7 +41,6 @@ Route::group([
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
     Route::put('/settings/locale', [SettingsController::class, 'updateLocale'])->name('settings.locale.update');
-    Route::put('/settings/engine', [SettingsController::class, 'updateEngine'])->name('settings.engine.update');
     Route::put('/settings/mail', [SettingsController::class, 'updateMail'])->name('settings.mail.update');
     Route::post('/settings/test-email', [SettingsController::class, 'sendTest'])->name('settings.test-email');
 });

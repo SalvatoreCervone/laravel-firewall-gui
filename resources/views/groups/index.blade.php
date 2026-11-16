@@ -100,12 +100,12 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Name</th>
-                            <th>Type</th>
-                            <th>Rules</th>
-                            <th>Priority</th>
-                            <th>Status</th>
-                            <th>Actions</th>
+                            <th>{{ __('firewall-gui::ui.groups.col_name') }}</th>
+                            <th>{{ __('firewall-gui::ui.groups.col_type') }}</th>
+                            <th>{{ __('firewall-gui::ui.groups.col_rules') }}</th>
+                            <th>{{ __('firewall-gui::ui.groups.col_priority') }}</th>
+                            <th>{{ __('firewall-gui::ui.common.status') }}</th>
+                            <th>{{ __('firewall-gui::ui.common.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -121,14 +121,14 @@
                                 </td>
                                 <td>
                                     @if ($group->type === 'whitelist')
-                                        <span class="badge badge-green">Whitelist</span>
+                                        <span class="badge badge-green">{{ __('firewall-gui::ui.common.whitelist') }}</span>
                                     @elseif ($group->type === 'notify')
-                                        <span class="badge badge-blue">Notify Only</span>
+                                        <span class="badge badge-blue">{{ __('firewall-gui::ui.common.notify_only') }}</span>
                                     @else
-                                        <span class="badge badge-red">Blacklist</span>
+                                        <span class="badge badge-red">{{ __('firewall-gui::ui.common.blacklist') }}</span>
                                     @endif
                                     @if ($group->type !== 'notify' && $group->notify_on_hit)
-                                        <span class="badge badge-blue" style="margin-left: 0.25rem;">+ Notify</span>
+                                        <span class="badge badge-blue" style="margin-left: 0.25rem;">{{ __('firewall-gui::ui.common.plus_notify') }}</span>
                                     @endif
                                 </td>
                                 <td>
@@ -137,32 +137,32 @@
                                 <td class="mono">{{ $group->priority }}</td>
                                 <td>
                                     @if ($group->is_active)
-                                        <span class="badge badge-green">Active</span>
+                                        <span class="badge badge-green">{{ __('firewall-gui::ui.common.active') }}</span>
                                     @else
-                                        <span class="badge badge-slate">Inactive</span>
+                                        <span class="badge badge-slate">{{ __('firewall-gui::ui.common.inactive') }}</span>
                                     @endif
                                 </td>
                                 <td>
                                     <div class="actions-cell">
                                         <a href="{{ route('firewall-gui.groups.show', $group) }}" class="btn btn-secondary btn-sm">
-                                            Manage
+                                            {{ __('firewall-gui::ui.common.manage') }}
                                         </a>
 
                                         <form method="POST" action="{{ route('firewall-gui.groups.toggle', $group) }}" class="inline-form">
                                             @csrf
                                             @method('PATCH')
                                             <button type="submit" class="btn btn-secondary btn-sm">
-                                                {{ $group->is_active ? 'Disable' : 'Enable' }}
+                                                {{ $group->is_active ? __('firewall-gui::ui.common.disable') : __('firewall-gui::ui.common.enable') }}
                                             </button>
                                         </form>
 
                                         <form method="POST"
                                               action="{{ route('firewall-gui.groups.destroy', $group) }}"
                                               class="inline-form"
-                                              data-confirm="Delete group {{ $group->name }} and all of its rules?">
+                                              data-confirm="{{ __('firewall-gui::ui.groups.delete_confirm', ['name' => $group->name]) }}">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">{{ __('firewall-gui::ui.common.delete') }}</button>
                                         </form>
                                     </div>
                                 </td>
@@ -178,5 +178,47 @@
                 </div>
             @endif
         @endif
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="card-title">{{ __('firewall-gui::ui.groups.default_rule_title') }}</h2>
+                <p class="card-subtitle">{{ __('firewall-gui::ui.groups.default_rule_subtitle') }}</p>
+            </div>
+        </div>
+        <div class="card-body">
+            @php
+                $selectedDefaultAction = old('default_action', $defaultRule['action'] ?? 'allow');
+                $defaultNotify = old('default_notify', $defaultRule['notify'] ?? false);
+            @endphp
+
+            <form method="POST" action="{{ route('firewall-gui.groups.default-rule.update') }}" class="settings-grid">
+                @csrf
+                @method('PUT')
+
+                <div class="form-group form-group-full">
+                    <label for="default-rule-action">{{ __('firewall-gui::ui.groups.default_action_label') }}</label>
+                    <select id="default-rule-action" name="default_action">
+                        <option value="allow" {{ $selectedDefaultAction === 'allow' ? 'selected' : '' }}>{{ __('firewall-gui::ui.groups.default_action_allow') }}</option>
+                        <option value="block" {{ $selectedDefaultAction === 'block' ? 'selected' : '' }}>{{ __('firewall-gui::ui.groups.default_action_block') }}</option>
+                    </select>
+                </div>
+
+                <div class="settings-toggles">
+                    <label class="checkbox-label">
+                        <input type="checkbox"
+                               name="default_notify"
+                               value="1"
+                               {{ $defaultNotify ? 'checked' : '' }}>
+                        <span>{{ __('firewall-gui::ui.groups.default_notify_label') }}</span>
+                    </label>
+                </div>
+
+                <div class="settings-actions">
+                    <button type="submit" class="btn btn-primary">{{ __('firewall-gui::ui.groups.default_rule_save') }}</button>
+                </div>
+            </form>
+        </div>
     </div>
 @endsection

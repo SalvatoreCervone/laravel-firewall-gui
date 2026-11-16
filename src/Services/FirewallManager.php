@@ -57,56 +57,56 @@ class FirewallManager
 
     public function isDryRun(): bool
     {
-        $engine = $this->getEngineSettings();
-
-        if ($engine['dry_run'] !== null) {
-            return $engine['dry_run'];
-        }
-
         return (bool) config('firewall-gui.dry_run', false);
     }
 
     public function mode(): string
     {
-        $engine = $this->getEngineSettings();
+        $default = $this->getDefaultRuleSettings();
 
-        if ($engine['mode'] !== null) {
-            return $engine['mode'];
-        }
-
-        return (string) config('firewall-gui.mode', 'blacklist_only');
+        return $default['action'] === 'block' ? 'whitelist_only' : 'blacklist_only';
     }
 
     /**
-     * @return array{mode: ?string, dry_run: ?bool}
+     * @return array{action: string, notify: bool}
      */
-    public function getEngineSettings(): array
+    public function getDefaultRuleSettings(): array
     {
         $ttl = (int) config('firewall-gui.cache.ttl', 86400);
 
-        return $this->cacheStore()->remember($this->engineSettingsCacheKey(), $ttl, function (): array {
-            $result = [
-                'mode' => null,
-                'dry_run' => null,
-            ];
+        return $this->cacheStore()->remember($this->defaultRuleCacheKey(), $ttl, function (): array {
+            $configAction = config('firewall-gui.mode', 'blacklist_only') === 'whitelist_only' ? 'block' : 'allow';
+            $action = $configAction;
+            $hasExplicitNotify = false;
+            $notify = false;
 
             try {
                 $rows = FirewallSetting::query()
-                    ->whereIn('key', ['firewall.mode', 'firewall.dry_run'])
+                    ->whereIn('key', ['firewall.default_action', 'firewall.default_notify'])
                     ->pluck('value', 'key');
+
+                if ($rows->has('firewall.default_action') && in_array($rows->get('firewall.default_action'), ['allow', 'block'], true)) {
+                    $action = (string) $rows->get('firewall.default_action');
+                }
+
+                if ($rows->has('firewall.default_notify')) {
+                    $hasExplicitNotify = true;
+                    $notify = $rows->get('firewall.default_notify') === '1';
+                }
             } catch (\Throwable) {
-                return $result;
+                // Fallback to config defaults
             }
 
-            if ($rows->has('firewall.mode') && in_array($rows->get('firewall.mode'), ['blacklist_only', 'whitelist_only'], true)) {
-                $result['mode'] = (string) $rows->get('firewall.mode');
+            if (! $hasExplicitNotify) {
+                $notify = $action === 'block'
+                    ? (bool) config('firewall-gui.notifications.on_unmatched_block', true)
+                    : false;
             }
 
-            if ($rows->has('firewall.dry_run')) {
-                $result['dry_run'] = $rows->get('firewall.dry_run') === '1';
-            }
-
-            return $result;
+            return [
+                'action' => $action,
+                'notify' => $notify,
+            ];
         });
     }
 
@@ -133,89 +133,72 @@ class FirewallManager
         }
 
         $payload = $this->getCachedRules();
-        $mode = $overrideMode ?? $this->mode();
-        $whitelistOverrides = (bool) config('firewall-gui.whitelist_overrides_blacklist', true);
+        $orderedRules = $payload['ordered'] ?? array_merge(
+            $payload[FirewallRule::TYPE_WHITELIST] ?? [],
+            $payload[FirewallRule::TYPE_BLACKLIST] ?? [],
+            $payload[FirewallRule::TYPE_NOTIFY] ?? [],
+        );
 
-        $whitelistMatch = $this->findMatchingRule($ip, $payload['whitelist'] ?? []);
-        $blacklistMatch = $this->findMatchingRule($ip, $payload['blacklist'] ?? []);
-        $notifyMatch = $this->findMatchingRule($ip, $payload['notify'] ?? []);
+        $matched = $this->findMatchingRule($ip, $orderedRules);
 
-        if ($whitelistOverrides && $whitelistMatch !== null) {
-            $activeNotify = $notifyMatch ?? (! empty($whitelistMatch['notify_on_hit']) ? $whitelistMatch : null);
+        if ($matched !== null) {
+            $type = $matched['type'];
+            $notifyOnHit = ! empty($matched['notify_on_hit']);
+
+            if ($type === FirewallRule::TYPE_BLACKLIST) {
+                return new FirewallDecision(
+                    allowed: false,
+                    action: $this->isDryRun()
+                        ? FirewallDecision::ACTION_DRY_RUN_BLOCKED
+                        : FirewallDecision::ACTION_BLOCKED,
+                    reason: $this->formatReason('Blocked by blacklist rule', $matched),
+                    matchedRule: $matched,
+                    matchedGroup: $matched['group'] ?? null,
+                    notifyRule: $notifyOnHit ? $matched : null,
+                    notifyGroup: $notifyOnHit ? ($matched['group'] ?? null) : null,
+                );
+            }
+
+            $reasonPrefix = $type === FirewallRule::TYPE_NOTIFY
+                ? 'Allowed by notify rule'
+                : 'Allowed by whitelist rule';
+
+            $notifyRule = ($type === FirewallRule::TYPE_NOTIFY || $notifyOnHit) ? $matched : null;
 
             return new FirewallDecision(
                 allowed: true,
                 action: FirewallDecision::ACTION_ALLOWED,
-                reason: $this->formatReason('Allowed by whitelist rule', $whitelistMatch),
-                matchedRule: $whitelistMatch,
-                matchedGroup: $whitelistMatch['group'] ?? null,
-                notifyRule: $activeNotify,
-                notifyGroup: $activeNotify['group'] ?? null,
+                reason: $this->formatReason($reasonPrefix, $matched),
+                matchedRule: $matched,
+                matchedGroup: $matched['group'] ?? null,
+                notifyRule: $notifyRule,
+                notifyGroup: $notifyRule !== null ? ($matched['group'] ?? null) : null,
             );
         }
 
-        if ($blacklistMatch !== null) {
-            $blockNotify = ! empty($blacklistMatch['notify_on_hit']) ? $blacklistMatch : null;
+        $default = $this->getDefaultRuleSettings();
+        $fallbackAction = $overrideMode !== null
+            ? ($overrideMode === 'whitelist_only' ? 'block' : 'allow')
+            : $default['action'];
 
+        if ($fallbackAction === 'block') {
             return new FirewallDecision(
                 allowed: false,
                 action: $this->isDryRun()
                     ? FirewallDecision::ACTION_DRY_RUN_BLOCKED
                     : FirewallDecision::ACTION_BLOCKED,
-                reason: $this->formatReason('Blocked by blacklist rule', $blacklistMatch),
-                matchedRule: $blacklistMatch,
-                matchedGroup: $blacklistMatch['group'] ?? null,
-                notifyRule: $blockNotify,
-                notifyGroup: $blockNotify['group'] ?? null,
-            );
-        }
-
-        if ($mode === 'whitelist_only') {
-            if ($whitelistMatch !== null) {
-                $activeNotify = $notifyMatch ?? (! empty($whitelistMatch['notify_on_hit']) ? $whitelistMatch : null);
-
-                return new FirewallDecision(
-                    allowed: true,
-                    action: FirewallDecision::ACTION_ALLOWED,
-                    reason: $this->formatReason('Allowed by whitelist rule', $whitelistMatch),
-                    matchedRule: $whitelistMatch,
-                    matchedGroup: $whitelistMatch['group'] ?? null,
-                    notifyRule: $activeNotify,
-                    notifyGroup: $activeNotify['group'] ?? null,
-                );
-            }
-
-            if ($notifyMatch !== null) {
-                return new FirewallDecision(
-                    allowed: true,
-                    action: FirewallDecision::ACTION_ALLOWED,
-                    reason: $this->formatReason('Allowed by notify rule', $notifyMatch),
-                    matchedRule: $notifyMatch,
-                    matchedGroup: $notifyMatch['group'] ?? null,
-                    notifyRule: $notifyMatch,
-                    notifyGroup: $notifyMatch['group'] ?? null,
-                );
-            }
-
-            return new FirewallDecision(
-                allowed: false,
-                action: $this->isDryRun()
-                    ? FirewallDecision::ACTION_DRY_RUN_BLOCKED
-                    : FirewallDecision::ACTION_BLOCKED,
-                reason: 'Blocked: whitelist_only mode is active and IP is not whitelisted.',
+                reason: 'Blocked: no matching rule and default action is block.',
+                isDefaultFallback: true,
+                notifyOnDefault: $default['notify'],
             );
         }
 
         return new FirewallDecision(
             allowed: true,
             action: FirewallDecision::ACTION_ALLOWED,
-            reason: $notifyMatch !== null
-                ? $this->formatReason('Allowed with access notification', $notifyMatch)
-                : 'No blocking rules matched.',
-            matchedRule: $notifyMatch,
-            matchedGroup: $notifyMatch['group'] ?? null,
-            notifyRule: $notifyMatch,
-            notifyGroup: $notifyMatch['group'] ?? null,
+            reason: 'Allowed: no matching rule and default action is allow.',
+            isDefaultFallback: true,
+            notifyOnDefault: $default['notify'],
         );
     }
 
@@ -253,20 +236,16 @@ class FirewallManager
 
     public function dispatchDailyNotificationIfNeeded(Request $request, FirewallDecision $decision): bool
     {
-        $settings = $this->getNotificationSettings();
-        $isUnmatchedBlock = $decision->isBlocked()
-            && $decision->matchedRule === null
-            && (bool) ($settings['on_unmatched_block'] ?? config('firewall-gui.notifications.on_unmatched_block', true));
-
-        if (! $decision->shouldNotify() && ! $isUnmatchedBlock) {
+        if (! $decision->shouldNotify()) {
             return false;
         }
 
+        $settings = $this->getNotificationSettings();
         $ip = (string) $request->ip();
         $notifyRule = $decision->notifyRule ?? [
             'id' => 0,
             'value' => $ip,
-            'label' => 'Not in Whitelist (Default Block)',
+            'label' => 'Default Fallback Rule',
         ];
         $ruleId = (int) ($notifyRule['id'] ?? 0);
 
@@ -708,7 +687,7 @@ class FirewallManager
         $this->cacheStore()->forget($this->settingsCacheKey());
         $this->cacheStore()->forget($this->mailSettingsCacheKey());
         $this->cacheStore()->forget($this->guiLocaleCacheKey());
-        $this->cacheStore()->forget($this->engineSettingsCacheKey());
+        $this->cacheStore()->forget($this->defaultRuleCacheKey());
 
         if (app()->resolved('mail.manager')) {
             $manager = app('mail.manager');
@@ -742,17 +721,20 @@ class FirewallManager
                 FirewallRule::TYPE_WHITELIST => [],
                 FirewallRule::TYPE_BLACKLIST => [],
                 FirewallRule::TYPE_NOTIFY => [],
+                'ordered' => [],
             ];
 
             foreach ($rules as $rule) {
                 $effectiveType = $rule->group?->type ?? $rule->type;
+                $priority = (int) ($rule->group?->priority ?? 0);
 
-                $payload[$effectiveType][] = [
+                $item = [
                     'id' => $rule->id,
                     'type' => $effectiveType,
                     'rule_type' => $rule->rule_type,
                     'value' => $rule->value,
                     'label' => $rule->label,
+                    'priority' => $priority,
                     'notify_on_hit' => $effectiveType === FirewallRule::TYPE_NOTIFY
                         || $rule->notify_on_hit
                         || ($rule->group?->notify_on_hit ?? false),
@@ -762,10 +744,29 @@ class FirewallManager
                         'name' => $rule->group->name,
                         'slug' => $rule->group->slug,
                         'type' => $rule->group->type,
+                        'priority' => $priority,
                         'notification_cooldown_hours' => $rule->group->notification_cooldown_hours,
                     ] : null,
                 ];
+
+                $payload[$effectiveType][] = $item;
+                $payload['ordered'][] = $item;
             }
+
+            $typeOrder = [
+                FirewallRule::TYPE_WHITELIST => 0,
+                FirewallRule::TYPE_BLACKLIST => 1,
+                FirewallRule::TYPE_NOTIFY => 2,
+            ];
+
+            usort($payload['ordered'], static function (array $a, array $b) use ($typeOrder): int {
+                $prioCmp = ($b['priority'] ?? 0) <=> ($a['priority'] ?? 0);
+                if ($prioCmp !== 0) {
+                    return $prioCmp;
+                }
+
+                return ($typeOrder[$a['type']] ?? 9) <=> ($typeOrder[$b['type']] ?? 9);
+            });
 
             return $payload;
         });
@@ -872,8 +873,8 @@ class FirewallManager
         return $this->cacheKey().'.gui_locale';
     }
 
-    protected function engineSettingsCacheKey(): string
+    protected function defaultRuleCacheKey(): string
     {
-        return $this->cacheKey().'.engine_settings';
+        return $this->cacheKey().'.default_rule';
     }
 }

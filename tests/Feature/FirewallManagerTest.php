@@ -95,4 +95,27 @@ class FirewallManagerTest extends TestCase
 
         $this->assertTrue(Firewall::check('127.0.0.1')->allowed);
     }
+
+    public function test_higher_priority_group_wins_over_lower_priority_group(): void
+    {
+        $highBlacklist = FirewallGroup::query()->create([
+            'name' => 'High Priority Block',
+            'type' => 'blacklist',
+            'priority' => 100,
+            'is_active' => true,
+        ]);
+
+        $lowWhitelist = FirewallGroup::query()->create([
+            'name' => 'Low Priority Allow',
+            'type' => 'whitelist',
+            'priority' => 10,
+            'is_active' => true,
+        ]);
+
+        Firewall::block('198.51.100.50', 'Blocked IP', $highBlacklist->id);
+        Firewall::allow('198.51.100.0/24', 'Subnet', $lowWhitelist->id);
+
+        $this->assertTrue(Firewall::check('198.51.100.50')->isBlocked());
+        $this->assertTrue(Firewall::check('198.51.100.51')->allowed);
+    }
 }

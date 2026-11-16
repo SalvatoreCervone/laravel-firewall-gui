@@ -122,23 +122,23 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="bulk-label">Shared Label (optional)</label>
+                    <label for="bulk-label">{{ __('firewall-gui::ui.rules.bulk_shared_label') }}</label>
                     <input type="text"
                            id="bulk-label"
                            name="label"
                            value="{{ old('label') }}"
-                           placeholder="e.g. Imported Blocklist">
+                           placeholder="{{ __('firewall-gui::ui.rules.bulk_shared_placeholder') }}">
                 </div>
 
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="notify_on_hit" value="1" {{ old('notify_on_hit', false) ? 'checked' : '' }}>
-                        <span>Email alert (1st hit/day)</span>
+                        <span>{{ __('firewall-gui::ui.rules.email_alert_on_hit') }}</span>
                     </label>
                 </div>
 
                 <div class="form-group">
-                    <button type="submit" class="btn btn-primary">Import Entries</button>
+                    <button type="submit" class="btn btn-primary">{{ __('firewall-gui::ui.rules.bulk_import_button') }}</button>
                 </div>
             </form>
         </div>
@@ -147,36 +147,36 @@
     <div class="card">
         <div class="card-header">
             <div>
-                <h2 class="card-title">Firewall Rules</h2>
-                <p class="card-subtitle">Filter and manage active or inactive IP rules.</p>
+                <h2 class="card-title">{{ __('firewall-gui::ui.rules.list_title') }}</h2>
+                <p class="card-subtitle">{{ __('firewall-gui::ui.rules.list_subtitle') }}</p>
             </div>
         </div>
 
         <div class="card-body" style="border-bottom: 1px solid var(--border-color); background-color: var(--bg-subtle);">
             <form method="GET" action="{{ route('firewall-gui.rules.index') }}" class="form-grid">
                 <div class="form-group">
-                    <label for="filter-search">Search</label>
+                    <label for="filter-search">{{ __('firewall-gui::ui.rules.filter_search') }}</label>
                     <input type="text"
                            id="filter-search"
                            name="search"
                            value="{{ $filters['search'] ?? '' }}"
-                           placeholder="IP, CIDR, or label...">
+                           placeholder="{{ __('firewall-gui::ui.rules.filter_search_placeholder') }}">
                 </div>
 
                 <div class="form-group">
-                    <label for="filter-type">Type</label>
+                    <label for="filter-type">{{ __('firewall-gui::ui.rules.filter_type') }}</label>
                     <select id="filter-type" name="type">
-                        <option value="">All Types</option>
-                        <option value="whitelist" {{ ($filters['type'] ?? '') === 'whitelist' ? 'selected' : '' }}>Whitelist</option>
-                        <option value="blacklist" {{ ($filters['type'] ?? '') === 'blacklist' ? 'selected' : '' }}>Blacklist</option>
-                        <option value="notify" {{ ($filters['type'] ?? '') === 'notify' ? 'selected' : '' }}>Notify</option>
+                        <option value="">{{ __('firewall-gui::ui.rules.filter_all_types') }}</option>
+                        <option value="whitelist" {{ ($filters['type'] ?? '') === 'whitelist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.whitelist') }}</option>
+                        <option value="blacklist" {{ ($filters['type'] ?? '') === 'blacklist' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.blacklist') }}</option>
+                        <option value="notify" {{ ($filters['type'] ?? '') === 'notify' ? 'selected' : '' }}>{{ __('firewall-gui::ui.common.notify') }}</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label for="filter-rule-type">Format</label>
+                    <label for="filter-rule-type">{{ __('firewall-gui::ui.rules.filter_format') }}</label>
                     <select id="filter-rule-type" name="rule_type">
-                        <option value="">All Formats</option>
+                        <option value="">{{ __('firewall-gui::ui.rules.filter_all_formats') }}</option>
                         <option value="ip" {{ ($filters['rule_type'] ?? '') === 'ip' ? 'selected' : '' }}>IP</option>
                         <option value="cidr" {{ ($filters['rule_type'] ?? '') === 'cidr' ? 'selected' : '' }}>CIDR</option>
                         <option value="range" {{ ($filters['rule_type'] ?? '') === 'range' ? 'selected' : '' }}>Range</option>
@@ -184,9 +184,9 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="filter-group">Group</label>
+                    <label for="filter-group">{{ __('firewall-gui::ui.rules.filter_group') }}</label>
                     <select id="filter-group" name="group_id">
-                        <option value="">All Groups</option>
+                        <option value="">{{ __('firewall-gui::ui.rules.filter_all_groups') }}</option>
                         @foreach ($groups as $group)
                             <option value="{{ $group->id }}" {{ (string) ($filters['group_id'] ?? '') === (string) $group->id ? 'selected' : '' }}>
                                 {{ $group->name }}
@@ -196,29 +196,29 @@
                 </div>
 
                 <div class="form-group" style="flex-direction: row; gap: 0.5rem;">
-                    <button type="submit" class="btn btn-primary">Filter</button>
-                    <a href="{{ route('firewall-gui.rules.index') }}" class="btn btn-secondary">Reset</a>
+                    <button type="submit" class="btn btn-primary">{{ __('firewall-gui::ui.common.filter') }}</button>
+                    <a href="{{ route('firewall-gui.rules.index') }}" class="btn btn-secondary">{{ __('firewall-gui::ui.common.reset') }}</a>
                 </div>
             </form>
         </div>
 
         @if ($rules->isEmpty())
             <div class="empty-state">
-                No firewall rules match the current filters.
+                {{ __('firewall-gui::ui.rules.empty') }}
             </div>
         @else
             <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
-                            <th>Value</th>
-                            <th>Format</th>
-                            <th>Type</th>
-                            <th>Group</th>
-                            <th>Label</th>
-                            <th>Expiration</th>
-                            <th>Status</th>
-                            <th>Actions</th>
+                            <th>{{ __('firewall-gui::ui.rules.col_value') }}</th>
+                            <th>{{ __('firewall-gui::ui.rules.col_format') }}</th>
+                            <th>{{ __('firewall-gui::ui.rules.col_type') }}</th>
+                            <th>{{ __('firewall-gui::ui.rules.col_group') }}</th>
+                            <th>{{ __('firewall-gui::ui.rules.col_label') }}</th>
+                            <th>{{ __('firewall-gui::ui.rules.col_expiration') }}</th>
+                            <th>{{ __('firewall-gui::ui.common.status') }}</th>
+                            <th>{{ __('firewall-gui::ui.common.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -227,7 +227,7 @@
                                 <td>
                                     <code class="mono">{{ $rule->value }}</code>
                                     @if ($rule->isExpired())
-                                        <span class="badge badge-amber" style="margin-left: 0.35rem;">Expired</span>
+                                        <span class="badge badge-amber" style="margin-left: 0.35rem;">{{ __('firewall-gui::ui.common.expired') }}</span>
                                     @endif
                                     @if ($rule->rule_type !== 'ip' && ($span = $rule->describeSpan()))
                                         <div class="text-muted mono" style="font-size: 0.75rem; margin-top: 0.2rem;">
@@ -240,14 +240,14 @@
                                 </td>
                                 <td>
                                     @if ($rule->type === 'whitelist')
-                                        <span class="badge badge-green">Whitelist</span>
+                                        <span class="badge badge-green">{{ __('firewall-gui::ui.common.whitelist') }}</span>
                                     @elseif ($rule->type === 'notify')
-                                        <span class="badge badge-blue">Notify Only</span>
+                                        <span class="badge badge-blue">{{ __('firewall-gui::ui.common.notify_only') }}</span>
                                     @else
-                                        <span class="badge badge-red">Blacklist</span>
+                                        <span class="badge badge-red">{{ __('firewall-gui::ui.common.blacklist') }}</span>
                                     @endif
                                     @if ($rule->type !== 'notify' && ($rule->notify_on_hit || ($rule->group && $rule->group->notify_on_hit)))
-                                        <span class="badge badge-blue" style="margin-left: 0.25rem;">+ Notify</span>
+                                        <span class="badge badge-blue" style="margin-left: 0.25rem;">{{ __('firewall-gui::ui.common.plus_notify') }}</span>
                                     @endif
                                 </td>
                                 <td>
@@ -259,13 +259,13 @@
                                 </td>
                                 <td>{{ $rule->label ?: '—' }}</td>
                                 <td class="mono text-muted">
-                                    {{ $rule->expires_at ? $rule->expires_at->format('Y-m-d H:i') : 'Never' }}
+                                    {{ $rule->expires_at ? $rule->expires_at->format('Y-m-d H:i') : __('firewall-gui::ui.common.never') }}
                                 </td>
                                 <td>
                                     @if ($rule->is_active)
-                                        <span class="badge badge-green">Active</span>
+                                        <span class="badge badge-green">{{ __('firewall-gui::ui.common.active') }}</span>
                                     @else
-                                        <span class="badge badge-slate">Inactive</span>
+                                        <span class="badge badge-slate">{{ __('firewall-gui::ui.common.inactive') }}</span>
                                     @endif
                                 </td>
                                 <td>
@@ -274,17 +274,17 @@
                                             @csrf
                                             @method('PATCH')
                                             <button type="submit" class="btn btn-secondary btn-sm">
-                                                {{ $rule->is_active ? 'Disable' : 'Enable' }}
+                                                {{ $rule->is_active ? __('firewall-gui::ui.common.disable') : __('firewall-gui::ui.common.enable') }}
                                             </button>
                                         </form>
 
                                         <form method="POST"
                                               action="{{ route('firewall-gui.rules.destroy', $rule) }}"
                                               class="inline-form"
-                                              data-confirm="Delete rule {{ $rule->value }}?">
+                                              data-confirm="{{ __('firewall-gui::ui.rules.delete_confirm', ['value' => $rule->value]) }}">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">{{ __('firewall-gui::ui.common.delete') }}</button>
                                         </form>
                                     </div>
                                 </td>

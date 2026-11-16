@@ -99,10 +99,10 @@
                                     @if ($log->rule || $log->group)
                                         <div class="text-muted" style="font-size: 0.78rem; margin-top: 0.15rem;">
                                             @if ($log->rule)
-                                                Rule: <code class="mono">{{ $log->rule->value }}</code>
+                                                {{ __('firewall-gui::ui.logs.rule_prefix') }} <code class="mono">{{ $log->rule->value }}</code>
                                             @endif
                                             @if ($log->group)
-                                                &middot; Group: <a href="{{ route('firewall-gui.groups.show', $log->group) }}">{{ $log->group->name }}</a>
+                                                &middot; {{ __('firewall-gui::ui.logs.group_prefix') }} <a href="{{ route('firewall-gui.groups.show', $log->group) }}">{{ $log->group->name }}</a>
                                             @endif
                                         </div>
                                     @endif
@@ -111,9 +111,9 @@
                                     <form method="POST"
                                           action="{{ route('firewall-gui.logs.allow', $log) }}"
                                           class="inline-form"
-                                          data-confirm="Add {{ $log->ip_address }} to the whitelist?">
+                                          data-confirm="{{ __('firewall-gui::ui.logs.whitelist_ip_confirm', ['ip' => $log->ip_address]) }}">
                                         @csrf
-                                        <button type="submit" class="btn btn-outline-success btn-sm">Whitelist IP</button>
+                                        <button type="submit" class="btn btn-outline-success btn-sm">{{ __('firewall-gui::ui.logs.whitelist_ip_button') }}</button>
                                     </form>
                                 </td>
                             </tr>

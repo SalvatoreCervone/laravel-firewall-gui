@@ -4,6 +4,7 @@ namespace FirewallGui\LaravelFirewallGui\Http\Controllers;
 
 use FirewallGui\LaravelFirewallGui\Models\FirewallGroup;
 use FirewallGui\LaravelFirewallGui\Models\FirewallRule;
+use FirewallGui\LaravelFirewallGui\Models\FirewallSetting;
 use FirewallGui\LaravelFirewallGui\Services\FirewallManager;
 use FirewallGui\LaravelFirewallGui\Support\IpMatcher;
 use Illuminate\Http\RedirectResponse;
@@ -32,8 +33,33 @@ class GroupController extends Controller
         return view('firewall-gui::groups.index', [
             'groups' => $groups,
             'globalCooldownHours' => $this->firewall->getNotificationSettings()['cooldown_hours'] ?? 24,
+            'defaultRule' => $this->firewall->getDefaultRuleSettings(),
             'currentIp' => (string) $request->ip(),
         ]);
+    }
+
+    public function updateDefaultRule(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'default_action' => ['required', 'in:allow,block'],
+            'default_notify' => ['nullable', 'boolean'],
+        ]);
+
+        FirewallSetting::query()->updateOrCreate(
+            ['key' => 'firewall.default_action'],
+            ['value' => $validated['default_action']]
+        );
+
+        FirewallSetting::query()->updateOrCreate(
+            ['key' => 'firewall.default_notify'],
+            ['value' => $request->boolean('default_notify') ? '1' : '0']
+        );
+
+        $this->firewall->clearCache();
+
+        return redirect()
+            ->back()
+            ->with('success', __('firewall-gui::ui.groups.default_rule_saved'));
     }
 
     public function store(Request $request): RedirectResponse

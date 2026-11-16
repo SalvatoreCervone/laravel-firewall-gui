@@ -24,38 +24,10 @@ class SettingsController extends Controller
         return view('firewall-gui::settings.index', [
             'settings' => $this->firewall->getNotificationSettings(),
             'mailSettings' => $this->firewall->getMailSettings(),
-            'engineSettings' => [
-                'mode' => $this->firewall->mode(),
-                'dry_run' => $this->firewall->isDryRun(),
-            ],
             'guiLocale' => $this->firewall->getGuiLocale() ?? 'auto',
             'groups' => FirewallGroup::query()->orderBy('name')->get(['id', 'name', 'type']),
             'currentIp' => (string) $request->ip(),
         ]);
-    }
-
-    public function updateEngine(Request $request): RedirectResponse
-    {
-        $validated = $request->validate([
-            'firewall_mode' => ['required', 'in:blacklist_only,whitelist_only'],
-            'firewall_block_enabled' => ['nullable', 'boolean'],
-        ]);
-
-        FirewallSetting::query()->updateOrCreate(
-            ['key' => 'firewall.mode'],
-            ['value' => $validated['firewall_mode']]
-        );
-
-        FirewallSetting::query()->updateOrCreate(
-            ['key' => 'firewall.dry_run'],
-            ['value' => $request->boolean('firewall_block_enabled') ? '0' : '1']
-        );
-
-        $this->firewall->clearCache();
-
-        return redirect()
-            ->back()
-            ->with('success', __('firewall-gui::settings.engine.saved_message'));
     }
 
     public function updateLocale(Request $request): RedirectResponse
@@ -156,9 +128,6 @@ class SettingsController extends Controller
 
         if (isset($validated['notifications_cooldown_hours'])) {
             $pairs['notifications.cooldown_hours'] = (string) $validated['notifications_cooldown_hours'];
-        }
-        if ($request->has('notifications_on_unmatched_block_present') || $request->has('notifications_on_unmatched_block')) {
-            $pairs['notifications.on_unmatched_block'] = $request->boolean('notifications_on_unmatched_block') ? '1' : '0';
         }
 
         foreach ($pairs as $key => $value) {

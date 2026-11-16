@@ -38,48 +38,6 @@
     <div class="card">
         <div class="card-header">
             <div>
-                <h2 class="card-title">{{ __('firewall-gui::settings.engine.title') }}</h2>
-                <p class="card-subtitle">{{ __('firewall-gui::settings.engine.subtitle') }}</p>
-            </div>
-        </div>
-        <div class="card-body">
-            @php
-                $selectedMode = old('firewall_mode', $engineSettings['mode'] ?? 'blacklist_only');
-                $blockEnabled = old('firewall_block_enabled', ! ($engineSettings['dry_run'] ?? false));
-            @endphp
-
-            <form method="POST" action="{{ route('firewall-gui.settings.engine.update') }}" class="settings-grid">
-                @csrf
-                @method('PUT')
-
-                <div class="form-group form-group-full">
-                    <label for="firewall-mode">{{ __('firewall-gui::settings.engine.mode_label') }}</label>
-                    <select id="firewall-mode" name="firewall_mode">
-                        <option value="blacklist_only" {{ $selectedMode === 'blacklist_only' ? 'selected' : '' }}>{{ __('firewall-gui::settings.engine.mode_blacklist') }}</option>
-                        <option value="whitelist_only" {{ $selectedMode === 'whitelist_only' ? 'selected' : '' }}>{{ __('firewall-gui::settings.engine.mode_whitelist') }}</option>
-                    </select>
-                </div>
-
-                <div class="settings-toggles">
-                    <label class="checkbox-label">
-                        <input type="checkbox"
-                               name="firewall_block_enabled"
-                               value="1"
-                               {{ $blockEnabled ? 'checked' : '' }}>
-                        <span>{{ __('firewall-gui::settings.engine.block_enabled_label') }}</span>
-                    </label>
-                </div>
-
-                <div class="settings-actions">
-                    <button type="submit" class="btn btn-primary">{{ __('firewall-gui::settings.engine.save_button') }}</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            <div>
                 <h2 class="card-title">{{ __('firewall-gui::settings.notifications.title') }}</h2>
                 <p class="card-subtitle">
                     {{ __('firewall-gui::settings.notifications.subtitle') }}
@@ -199,21 +157,12 @@
                 </div>
 
                 <div class="settings-toggles">
-                    <input type="hidden" name="notifications_on_unmatched_block_present" value="1">
                     <label class="checkbox-label">
                         <input type="checkbox"
                                name="notifications_enabled"
                                value="1"
                                {{ old('notifications_enabled', $settings['enabled']) ? 'checked' : '' }}>
                         <span>{{ __('firewall-gui::settings.notifications.enabled_label') }}</span>
-                    </label>
-
-                    <label class="checkbox-label">
-                        <input type="checkbox"
-                               name="notifications_on_unmatched_block"
-                               value="1"
-                               {{ old('notifications_on_unmatched_block', $settings['on_unmatched_block'] ?? true) ? 'checked' : '' }}>
-                        <span>{{ __('firewall-gui::settings.notifications.on_unmatched_block_label') }}</span>
                     </label>
 
                     <label class="checkbox-label">

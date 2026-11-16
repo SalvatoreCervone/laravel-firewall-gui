@@ -442,7 +442,7 @@ class GuiControllerTest extends TestCase
         $this->assertSame([$groupA->id], $settings['recipients'][1]['group_ids']);
     }
 
-    public function test_settings_page_can_configure_whitelist_only_allow_with_email_and_block_toggle(): void
+    public function test_groups_default_fallback_rule_controls_unmatched_allow_or_block_and_email(): void
     {
         Mail::fake();
         \Illuminate\Support\Facades\Route::middleware(\FirewallGui\LaravelFirewallGui\Http\Middleware\FirewallMiddleware::class)
@@ -452,15 +452,31 @@ class GuiControllerTest extends TestCase
             'notifications_enabled' => '1',
             'notifications_emails_present' => '1',
             'notifications_recipients' => [['email' => 'soc@example.com', 'group_ids' => []]],
-            'notifications_on_unmatched_block_present' => '1',
-            'notifications_on_unmatched_block' => '1',
+            'notifications_log_access' => '1',
         ])->assertRedirect();
 
-        // Whitelist only + DO NOT block unmatched (dry_run = true) -> allows, logs, sends email
-        $this->put('/firewall/settings/engine', [
-            'firewall_mode' => 'whitelist_only',
+        $office = FirewallGroup::query()->create([
+            'name' => 'Office',
+            'type' => 'whitelist',
+            'priority' => 100,
+            'is_active' => true,
+            'notify_on_hit' => false,
+        ]);
+        \FirewallGui\LaravelFirewallGui\Facades\Firewall::allow('10.119.179.0/24', 'Office LAN', $office->id);
+
+        // Default fallback = ALLOW + SEND EMAIL (when no rule matches)
+        $this->put('/firewall/groups/default-rule', [
+            'default_action' => 'allow',
+            'default_notify' => '1',
         ])->assertRedirect();
 
+        // Office IP -> allowed, no email
+        $this->withServerVariables(['REMOTE_ADDR' => '10.119.179.15'])
+            ->get('/engine-test-endpoint')
+            ->assertOk();
+        Mail::assertNothingQueued();
+
+        // Non-matching IP -> allowed, logged as notified, and email queued
         $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.77'])
             ->get('/engine-test-endpoint')
             ->assertOk()
@@ -468,18 +484,24 @@ class GuiControllerTest extends TestCase
 
         $this->assertDatabaseHas('firewall_logs', [
             'ip_address' => '203.0.113.77',
-            'action' => 'dry_run_blocked',
+            'action' => 'notified',
         ]);
         Mail::assertQueued(FirewallAccessNotification::class, 1);
 
-        // Now enable blocking from panel -> 403 Forbidden
-        $this->put('/firewall/settings/engine', [
-            'firewall_mode' => 'whitelist_only',
-            'firewall_block_enabled' => '1',
+        // Switch default fallback to BLOCK + SEND EMAIL -> 403 Forbidden + blocked log + email
+        $this->put('/firewall/groups/default-rule', [
+            'default_action' => 'block',
+            'default_notify' => '1',
         ])->assertRedirect();
 
         $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.78'])
             ->get('/engine-test-endpoint')
             ->assertStatus(403);
+
+        $this->assertDatabaseHas('firewall_logs', [
+            'ip_address' => '203.0.113.78',
+            'action' => 'blocked',
+        ]);
+        Mail::assertQueued(FirewallAccessNotification::class, 2);
     }
 }

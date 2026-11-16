@@ -109,8 +109,8 @@
     <div class="card">
         <div class="card-header">
             <div>
-                <h2 class="card-title">Add Rule to {{ $group->name }}</h2>
-                <p class="card-subtitle">New rules added here inherit this group's <strong>{{ $group->type }}</strong> type.</p>
+                <h2 class="card-title">{{ __('firewall-gui::ui.groups.add_rule_title', ['name' => $group->name]) }}</h2>
+                <p class="card-subtitle">{{ __('firewall-gui::ui.groups.add_rule_subtitle', ['type' => $group->type]) }}</p>
             </div>
         </div>
         <div class="card-body">
@@ -120,7 +120,7 @@
                 <input type="hidden" name="type" value="{{ $group->type }}">
 
                 <div class="form-group" style="grid-column: span 2;">
-                    <label for="group-rule-value">IP / CIDR / Range</label>
+                    <label for="group-rule-value">{{ __('firewall-gui::ui.rules.ip_cidr_range') }}</label>
                     <input type="text"
                            id="group-rule-value"
                            name="value"
@@ -132,16 +132,16 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="group-rule-label">Label (optional)</label>
+                    <label for="group-rule-label">{{ __('firewall-gui::ui.rules.label_optional') }}</label>
                     <input type="text"
                            id="group-rule-label"
                            name="label"
                            value="{{ old('label') }}"
-                           placeholder="e.g. Branch Office">
+                           placeholder="{{ __('firewall-gui::ui.rules.label_placeholder') }}">
                 </div>
 
                 <div class="form-group">
-                    <label for="group-rule-expires">Expires At (optional)</label>
+                    <label for="group-rule-expires">{{ __('firewall-gui::ui.rules.expires_optional') }}</label>
                     <input type="datetime-local"
                            id="group-rule-expires"
                            name="expires_at"
@@ -151,26 +151,26 @@
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }}>
-                        <span>Active immediately</span>
+                        <span>{{ __('firewall-gui::ui.rules.active_immediately') }}</span>
                     </label>
                 </div>
 
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="notify_on_hit" value="1" {{ old('notify_on_hit', $group->notify_on_hit) ? 'checked' : '' }}>
-                        <span>Email alert (1st hit/day)</span>
+                        <span>{{ __('firewall-gui::ui.rules.email_alert_on_hit') }}</span>
                     </label>
                 </div>
 
                 <div class="form-group">
-                    <button type="submit" class="btn btn-primary">Add Rule</button>
+                    <button type="submit" class="btn btn-primary">{{ __('firewall-gui::ui.rules.add_button') }}</button>
                 </div>
             </form>
         </div>
     </div>
 
     <details class="collapsible">
-        <summary>Bulk Import into {{ $group->name }}</summary>
+        <summary>{{ __('firewall-gui::ui.groups.bulk_import_title', ['name' => $group->name]) }}</summary>
         <div class="collapsible-body">
             <form method="POST" action="{{ route('firewall-gui.rules.bulk-import') }}" class="form-grid">
                 @csrf
@@ -178,7 +178,7 @@
                 <input type="hidden" name="type" value="{{ $group->type }}">
 
                 <div class="form-group form-group-full">
-                    <label for="group-bulk-entries">Entries (one IP, CIDR, or range per line)</label>
+                    <label for="group-bulk-entries">{{ __('firewall-gui::ui.rules.bulk_entries') }}</label>
                     <textarea id="group-bulk-entries"
                               name="entries"
                               rows="5"
@@ -187,16 +187,16 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="group-bulk-label">Shared Label (optional)</label>
+                    <label for="group-bulk-label">{{ __('firewall-gui::ui.rules.bulk_shared_label') }}</label>
                     <input type="text"
                            id="group-bulk-label"
                            name="label"
                            value="{{ old('label') }}"
-                           placeholder="e.g. Batch Import">
+                           placeholder="{{ __('firewall-gui::ui.rules.bulk_shared_placeholder') }}">
                 </div>
 
                 <div class="form-group">
-                    <button type="submit" class="btn btn-primary">Import into Group</button>
+                    <button type="submit" class="btn btn-primary">{{ __('firewall-gui::ui.groups.bulk_import_button') }}</button>
                 </div>
             </form>
         </div>
@@ -205,26 +205,26 @@
     <div class="card">
         <div class="card-header">
             <div>
-                <h2 class="card-title">Rules in Group</h2>
-                <p class="card-subtitle">All rules currently assigned to {{ $group->name }}.</p>
+                <h2 class="card-title">{{ __('firewall-gui::ui.groups.rules_in_group_title') }}</h2>
+                <p class="card-subtitle">{{ __('firewall-gui::ui.groups.rules_in_group_subtitle', ['name' => $group->name]) }}</p>
             </div>
         </div>
 
         @if ($rules->isEmpty())
             <div class="empty-state">
-                No rules are assigned to this group yet.
+                {{ __('firewall-gui::ui.groups.rules_in_group_empty') }}
             </div>
         @else
             <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
-                            <th>Value</th>
-                            <th>Format</th>
-                            <th>Label</th>
-                            <th>Expiration</th>
-                            <th>Status</th>
-                            <th>Actions</th>
+                            <th>{{ __('firewall-gui::ui.rules.col_value') }}</th>
+                            <th>{{ __('firewall-gui::ui.rules.col_format') }}</th>
+                            <th>{{ __('firewall-gui::ui.rules.col_label') }}</th>
+                            <th>{{ __('firewall-gui::ui.rules.col_expiration') }}</th>
+                            <th>{{ __('firewall-gui::ui.common.status') }}</th>
+                            <th>{{ __('firewall-gui::ui.common.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -233,7 +233,7 @@
                                 <td>
                                     <code class="mono">{{ $rule->value }}</code>
                                     @if ($rule->isExpired())
-                                        <span class="badge badge-amber" style="margin-left: 0.35rem;">Expired</span>
+                                        <span class="badge badge-amber" style="margin-left: 0.35rem;">{{ __('firewall-gui::ui.common.expired') }}</span>
                                     @endif
                                     @if ($rule->rule_type !== 'ip' && ($span = $rule->describeSpan()))
                                         <div class="text-muted mono" style="font-size: 0.75rem; margin-top: 0.2rem;">
@@ -244,18 +244,18 @@
                                 <td>
                                     <span class="badge badge-slate">{{ strtoupper($rule->rule_type) }}</span>
                                     @if ($rule->notify_on_hit || $group->notify_on_hit)
-                                        <span class="badge badge-blue" style="margin-left: 0.25rem;">Notify</span>
+                                        <span class="badge badge-blue" style="margin-left: 0.25rem;">{{ __('firewall-gui::ui.common.notify') }}</span>
                                     @endif
                                 </td>
                                 <td>{{ $rule->label ?: '—' }}</td>
                                 <td class="mono text-muted">
-                                    {{ $rule->expires_at ? $rule->expires_at->format('Y-m-d H:i') : 'Never' }}
+                                    {{ $rule->expires_at ? $rule->expires_at->format('Y-m-d H:i') : __('firewall-gui::ui.common.never') }}
                                 </td>
                                 <td>
                                     @if ($rule->is_active)
-                                        <span class="badge badge-green">Active</span>
+                                        <span class="badge badge-green">{{ __('firewall-gui::ui.common.active') }}</span>
                                     @else
-                                        <span class="badge badge-slate">Inactive</span>
+                                        <span class="badge badge-slate">{{ __('firewall-gui::ui.common.inactive') }}</span>
                                     @endif
                                 </td>
                                 <td>
@@ -264,17 +264,17 @@
                                             @csrf
                                             @method('PATCH')
                                             <button type="submit" class="btn btn-secondary btn-sm">
-                                                {{ $rule->is_active ? 'Disable' : 'Enable' }}
+                                                {{ $rule->is_active ? __('firewall-gui::ui.common.disable') : __('firewall-gui::ui.common.enable') }}
                                             </button>
                                         </form>
 
                                         <form method="POST"
                                               action="{{ route('firewall-gui.rules.destroy', $rule) }}"
                                               class="inline-form"
-                                              data-confirm="Delete rule {{ $rule->value }}?">
+                                              data-confirm="{{ __('firewall-gui::ui.rules.delete_confirm', ['value' => $rule->value]) }}">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">{{ __('firewall-gui::ui.common.delete') }}</button>
                                         </form>
                                     </div>
                                 </td>

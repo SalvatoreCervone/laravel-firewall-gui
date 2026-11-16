@@ -23,6 +23,8 @@ readonly class FirewallDecision
         public ?array $matchedGroup = null,
         public ?array $notifyRule = null,
         public ?array $notifyGroup = null,
+        public bool $isDefaultFallback = false,
+        public bool $notifyOnDefault = false,
     ) {}
 
     public function isBlocked(): bool
@@ -32,6 +34,6 @@ readonly class FirewallDecision
 
     public function shouldNotify(): bool
     {
-        return $this->notifyRule !== null;
+        return $this->notifyRule !== null || $this->notifyOnDefault;
     }
 }
