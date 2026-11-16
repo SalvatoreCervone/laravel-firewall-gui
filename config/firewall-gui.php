@@ -94,15 +94,37 @@ return [
     | Access Email Notifications (Notify Rules)
     |--------------------------------------------------------------------------
     |
-    | Rules/groups of type "notify" allow the request and queue an email on the
-    | first access of the day from that IP address.
+    | Rules/groups of type "notify" allow the request and queue an email at most
+    | once per cooldown window (in hours) per IP address, while still logging
+    | every access.
     |
     */
     'notifications' => [
         'enabled' => env('FIREWALL_GUI_NOTIFY_ENABLED', true),
         'to' => env('FIREWALL_GUI_NOTIFY_TO', ''), // Comma-separated emails or array
         'queue' => env('FIREWALL_GUI_NOTIFY_QUEUE', null), // Optional queue name
+        'cooldown_hours' => env('FIREWALL_GUI_NOTIFY_COOLDOWN_HOURS', 24),
         'log_access' => true,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Mail Server Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Optionally override Laravel's default mailer for firewall notifications.
+    | When "mailer" is null or "default", Laravel's default mailer is used.
+    |
+    */
+    'mail' => [
+        'mailer' => env('FIREWALL_GUI_MAILER', null), // null/'default', 'smtp', 'sendmail', 'log'
+        'host' => env('FIREWALL_GUI_MAIL_HOST', null),
+        'port' => env('FIREWALL_GUI_MAIL_PORT', 587),
+        'encryption' => env('FIREWALL_GUI_MAIL_ENCRYPTION', 'tls'), // 'tls', 'ssl', or null
+        'username' => env('FIREWALL_GUI_MAIL_USERNAME', null),
+        'password' => env('FIREWALL_GUI_MAIL_PASSWORD', null),
+        'from_address' => env('FIREWALL_GUI_MAIL_FROM_ADDRESS', null),
+        'from_name' => env('FIREWALL_GUI_MAIL_FROM_NAME', null),
     ],
 
     /*

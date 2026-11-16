@@ -12,8 +12,10 @@ use FirewallGui\LaravelFirewallGui\Support\FirewallDecision;
 use FirewallGui\LaravelFirewallGui\Support\IpMatcher;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 
@@ -206,42 +208,40 @@ class FirewallManager
 
     public function dispatchDailyNotificationIfNeeded(Request $request, FirewallDecision $decision): bool
     {
+        if (! $decision->shouldNotify()) {
+            return false;
+        }
+
         $settings = $this->getNotificationSettings();
-
-        if (! $decision->shouldNotify() || ! $settings['enabled']) {
-            return false;
-        }
-
-        $recipients = $this->parseNotificationRecipients($settings['to']);
-        if ($recipients === []) {
-            return false;
-        }
-
         $ip = (string) $request->ip();
         $ruleId = (int) ($decision->notifyRule['id'] ?? 0);
-        $dailyKey = sprintf('firewall_gui.notified.%s.%s', now()->format('Y-m-d'), md5($ip.'|'.$ruleId));
 
-        if (! $this->cacheStore()->add($dailyKey, true, now()->endOfDay())) {
-            return false;
+        $emailQueued = false;
+        $cooldownHours = max(1, (int) $settings['cooldown_hours']);
+
+        if ($settings['enabled']) {
+            $recipients = $this->parseNotificationRecipients($settings['to']);
+
+            if ($recipients !== []) {
+                $cooldownKey = sprintf('firewall_gui.notified.%s', md5($ip.'|'.$ruleId));
+
+                if ($this->cacheStore()->add($cooldownKey, true, now()->addHours($cooldownHours))) {
+                    $mailable = new FirewallAccessNotification(
+                        ipAddress: $ip,
+                        method: $request->method(),
+                        path: '/'.ltrim($request->path(), '/'),
+                        userAgent: $request->userAgent(),
+                        accessedAt: now()->toDateTimeString(),
+                        matchedRule: $decision->notifyRule,
+                        matchedGroup: $decision->notifyGroup,
+                        decisionAction: $decision->action,
+                    );
+
+                    $this->queueNotificationMailable($recipients, $mailable);
+                    $emailQueued = true;
+                }
+            }
         }
-
-        $mailable = new FirewallAccessNotification(
-            ipAddress: $ip,
-            method: $request->method(),
-            path: '/'.ltrim($request->path(), '/'),
-            userAgent: $request->userAgent(),
-            accessedAt: now()->toDateTimeString(),
-            matchedRule: $decision->notifyRule,
-            matchedGroup: $decision->notifyGroup,
-            decisionAction: $decision->action,
-        );
-
-        $queue = $settings['queue'];
-        if (is_string($queue) && $queue !== '') {
-            $mailable->onQueue($queue);
-        }
-
-        Mail::to($recipients)->queue($mailable);
 
         if ($decision->allowed && $settings['log_access'] && (bool) config('firewall-gui.logging.enabled', true)) {
             FirewallLog::query()->create([
@@ -252,16 +252,19 @@ class FirewallManager
                 'action' => FirewallDecision::ACTION_NOTIFIED,
                 'matched_rule_id' => $decision->notifyRule['id'] ?? null,
                 'matched_group_id' => $decision->notifyGroup['id'] ?? null,
-                'reason' => $this->formatReason('First daily access notification queued', $decision->notifyRule),
+                'reason' => $this->formatReason(
+                    $emailQueued ? 'Access notification queued' : 'Notify rule access (notification cooldown active)',
+                    $decision->notifyRule
+                ),
                 'created_at' => now(),
             ]);
         }
 
-        return true;
+        return $emailQueued;
     }
 
     /**
-     * @return array{enabled: bool, to: string, queue: ?string, log_access: bool}
+     * @return array{enabled: bool, to: string, queue: ?string, cooldown_hours: int, log_access: bool}
      */
     public function getNotificationSettings(): array
     {
@@ -274,6 +277,7 @@ class FirewallManager
                     ? implode(', ', $to)
                     : (string) $to,
                 'queue' => config('firewall-gui.notifications.queue') ?: null,
+                'cooldown_hours' => max(1, (int) config('firewall-gui.notifications.cooldown_hours', 24)),
                 'log_access' => (bool) config('firewall-gui.notifications.log_access', true),
             ];
 
@@ -283,6 +287,7 @@ class FirewallManager
                         'notifications.enabled',
                         'notifications.to',
                         'notifications.queue',
+                        'notifications.cooldown_hours',
                         'notifications.log_access',
                     ])
                     ->pluck('value', 'key');
@@ -299,12 +304,181 @@ class FirewallManager
             if ($rows->has('notifications.queue')) {
                 $defaults['queue'] = $rows->get('notifications.queue') ?: null;
             }
+            if ($rows->has('notifications.cooldown_hours')) {
+                $defaults['cooldown_hours'] = max(1, (int) $rows->get('notifications.cooldown_hours'));
+            }
             if ($rows->has('notifications.log_access')) {
                 $defaults['log_access'] = $rows->get('notifications.log_access') === '1';
             }
 
             return $defaults;
         });
+    }
+
+    /**
+     * @return array{
+     *     mailer: ?string,
+     *     host: ?string,
+     *     port: ?int,
+     *     encryption: ?string,
+     *     username: ?string,
+     *     password: ?string,
+     *     has_password: bool,
+     *     from_address: ?string,
+     *     from_name: ?string
+     * }
+     */
+    public function getMailSettings(): array
+    {
+        $ttl = (int) config('firewall-gui.cache.ttl', 86400);
+
+        $settings = $this->cacheStore()->remember($this->mailSettingsCacheKey(), $ttl, function (): array {
+            $defaults = [
+                'mailer' => ($m = config('firewall-gui.mail.mailer')) && $m !== 'default' ? (string) $m : null,
+                'host' => ($h = config('firewall-gui.mail.host')) ? (string) $h : null,
+                'port' => ($p = config('firewall-gui.mail.port')) ? (int) $p : 587,
+                'encryption' => ($e = config('firewall-gui.mail.encryption')) ? (string) $e : null,
+                'username' => ($u = config('firewall-gui.mail.username')) ? (string) $u : null,
+                'password_encrypted' => null,
+                'password_plain' => ($pw = config('firewall-gui.mail.password')) ? (string) $pw : null,
+                'from_address' => ($fa = config('firewall-gui.mail.from_address')) ? (string) $fa : null,
+                'from_name' => ($fn = config('firewall-gui.mail.from_name')) ? (string) $fn : null,
+            ];
+
+            try {
+                $rows = FirewallSetting::query()
+                    ->whereIn('key', [
+                        'mail.mailer',
+                        'mail.host',
+                        'mail.port',
+                        'mail.encryption',
+                        'mail.username',
+                        'mail.password',
+                        'mail.from_address',
+                        'mail.from_name',
+                    ])
+                    ->pluck('value', 'key');
+            } catch (\Throwable) {
+                return $defaults;
+            }
+
+            if ($rows->has('mail.mailer')) {
+                $mailer = $rows->get('mail.mailer');
+                $defaults['mailer'] = ($mailer && $mailer !== 'default') ? (string) $mailer : null;
+            }
+            if ($rows->has('mail.host')) {
+                $defaults['host'] = $rows->get('mail.host') ?: null;
+            }
+            if ($rows->has('mail.port')) {
+                $defaults['port'] = $rows->get('mail.port') ? (int) $rows->get('mail.port') : null;
+            }
+            if ($rows->has('mail.encryption')) {
+                $defaults['encryption'] = $rows->get('mail.encryption') ?: null;
+            }
+            if ($rows->has('mail.username')) {
+                $defaults['username'] = $rows->get('mail.username') ?: null;
+            }
+            if ($rows->has('mail.password')) {
+                $defaults['password_encrypted'] = $rows->get('mail.password') ?: null;
+                $defaults['password_plain'] = null;
+            }
+            if ($rows->has('mail.from_address')) {
+                $defaults['from_address'] = $rows->get('mail.from_address') ?: null;
+            }
+            if ($rows->has('mail.from_name')) {
+                $defaults['from_name'] = $rows->get('mail.from_name') ?: null;
+            }
+
+            return $defaults;
+        });
+
+        $password = $settings['password_plain'] ?? null;
+        if (! empty($settings['password_encrypted'])) {
+            try {
+                $password = Crypt::decryptString((string) $settings['password_encrypted']);
+            } catch (DecryptException) {
+                $password = null;
+            }
+        }
+
+        return [
+            'mailer' => $settings['mailer'],
+            'host' => $settings['host'],
+            'port' => $settings['port'],
+            'encryption' => $settings['encryption'],
+            'username' => $settings['username'],
+            'password' => $password,
+            'has_password' => $password !== null && $password !== '',
+            'from_address' => $settings['from_address'],
+            'from_name' => $settings['from_name'],
+        ];
+    }
+
+    public function applyCustomMailerConfig(): ?string
+    {
+        $mail = $this->getMailSettings();
+
+        if (empty($mail['mailer'])) {
+            return null;
+        }
+
+        $mailerConfig = match ($mail['mailer']) {
+            'smtp' => [
+                'transport' => 'smtp',
+                'host' => $mail['host'],
+                'port' => $mail['port'] ?? 587,
+                'encryption' => $mail['encryption'] ?: null,
+                'username' => $mail['username'] ?: null,
+                'password' => $mail['password'] ?: null,
+                'timeout' => null,
+                'local_domain' => config('mail.mailers.smtp.local_domain'),
+            ],
+            'sendmail' => [
+                'transport' => 'sendmail',
+                'path' => config('mail.mailers.sendmail.path', '/usr/sbin/sendmail -bs -i'),
+            ],
+            'log' => [
+                'transport' => 'log',
+                'channel' => config('mail.mailers.log.channel'),
+            ],
+            default => null,
+        };
+
+        if ($mailerConfig === null) {
+            return null;
+        }
+
+        config()->set('mail.mailers.firewall_gui', $mailerConfig);
+
+        return 'firewall_gui';
+    }
+
+    /**
+     * @param  array<int, string>|string  $recipients
+     */
+    public function queueNotificationMailable(array|string $recipients, FirewallAccessNotification $mailable): void
+    {
+        $notificationSettings = $this->getNotificationSettings();
+        $mailSettings = $this->getMailSettings();
+
+        if (! empty($notificationSettings['queue'])) {
+            $mailable->onQueue((string) $notificationSettings['queue']);
+        }
+
+        if (! empty($mailSettings['from_address'])) {
+            $mailable->fromAddress = $mailSettings['from_address'];
+            $mailable->fromName = $mailSettings['from_name'] ?: null;
+        }
+
+        $customMailer = $this->applyCustomMailerConfig();
+
+        if ($customMailer !== null) {
+            Mail::mailer($customMailer)->to($recipients)->queue($mailable);
+
+            return;
+        }
+
+        Mail::to($recipients)->queue($mailable);
     }
 
     /**
@@ -372,6 +546,14 @@ class FirewallManager
     {
         $this->cacheStore()->forget($this->cacheKey());
         $this->cacheStore()->forget($this->settingsCacheKey());
+        $this->cacheStore()->forget($this->mailSettingsCacheKey());
+
+        if (app()->resolved('mail.manager')) {
+            $manager = app('mail.manager');
+            if (method_exists($manager, 'purge')) {
+                $manager->purge('firewall_gui');
+            }
+        }
     }
 
     /**
@@ -515,5 +697,10 @@ class FirewallManager
     protected function settingsCacheKey(): string
     {
         return $this->cacheKey().'.settings';
+    }
+
+    protected function mailSettingsCacheKey(): string
+    {
+        return $this->cacheKey().'.mail_settings';
     }
 }

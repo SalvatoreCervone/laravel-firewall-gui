@@ -256,4 +256,128 @@ class GuiControllerTest extends TestCase
             return $mail->hasTo('tester@example.com') && $mail->queue === 'alerts';
         });
     }
+
+    public function test_settings_page_saves_mail_server_config_and_uses_custom_from_and_mailer(): void
+    {
+        Mail::fake();
+
+        $this->get('/firewall/settings')
+            ->assertOk()
+            ->assertSee('Mail Server Settings');
+
+        // Validation: smtp requires host and port
+        $this->put('/firewall/settings/mail', [
+            'mail_mailer' => 'smtp',
+            'mail_host' => '',
+            'mail_port' => '',
+        ])->assertSessionHasErrors(['mail_host', 'mail_port']);
+
+        // Save valid SMTP config with password
+        $this->put('/firewall/settings/mail', [
+            'mail_mailer' => 'smtp',
+            'mail_host' => 'smtp.example.org',
+            'mail_port' => '465',
+            'mail_encryption' => 'ssl',
+            'mail_username' => 'firewall@example.org',
+            'mail_password' => 'super-secret-pass',
+            'mail_from_address' => 'alerts@example.org',
+            'mail_from_name' => 'Firewall Bot',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('firewall_settings', [
+            'key' => 'mail.mailer',
+            'value' => 'smtp',
+        ]);
+        $this->assertDatabaseHas('firewall_settings', [
+            'key' => 'mail.host',
+            'value' => 'smtp.example.org',
+        ]);
+
+        // Password must be encrypted in DB, not stored as plaintext
+        $storedPassword = \FirewallGui\LaravelFirewallGui\Models\FirewallSetting::query()
+            ->where('key', 'mail.password')
+            ->value('value');
+        $this->assertNotNull($storedPassword);
+        $this->assertNotSame('super-secret-pass', $storedPassword);
+
+        // Updating without password keeps existing password
+        $this->put('/firewall/settings/mail', [
+            'mail_mailer' => 'smtp',
+            'mail_host' => 'smtp.example.org',
+            'mail_port' => '587',
+            'mail_encryption' => 'tls',
+            'mail_username' => 'firewall@example.org',
+            'mail_password' => '',
+            'mail_from_address' => 'alerts@example.org',
+            'mail_from_name' => 'Firewall Bot',
+        ])->assertRedirect();
+
+        $mailSettings = app(\FirewallGui\LaravelFirewallGui\Services\FirewallManager::class)->getMailSettings();
+        $this->assertTrue($mailSettings['has_password']);
+        $this->assertSame('super-secret-pass', $mailSettings['password']);
+        $this->assertSame(587, $mailSettings['port']);
+
+        // Send test email -> uses custom mailer config and custom From
+        $this->post('/firewall/settings/test-email', [
+            'test_email' => 'admin@example.org',
+        ])->assertRedirect();
+
+        $this->assertSame('smtp.example.org', config('mail.mailers.firewall_gui.host'));
+        $this->assertSame(587, config('mail.mailers.firewall_gui.port'));
+        $this->assertSame('tls', config('mail.mailers.firewall_gui.encryption'));
+        $this->assertSame('super-secret-pass', config('mail.mailers.firewall_gui.password'));
+
+        Mail::assertQueued(FirewallAccessNotification::class, function (FirewallAccessNotification $mail): bool {
+            return $mail->hasTo('admin@example.org')
+                && $mail->hasFrom('alerts@example.org', 'Firewall Bot');
+        });
+
+        // Clear password
+        $this->put('/firewall/settings/mail', [
+            'mail_mailer' => 'default',
+            'mail_clear_password' => '1',
+        ])->assertRedirect();
+
+        $mailSettingsAfterClear = app(\FirewallGui\LaravelFirewallGui\Services\FirewallManager::class)->getMailSettings();
+        $this->assertFalse($mailSettingsAfterClear['has_password']);
+        $this->assertNull($mailSettingsAfterClear['mailer']);
+    }
+
+    public function test_settings_page_saves_recipient_emails_from_table_input(): void
+    {
+        $this->put('/firewall/settings', [
+            'notifications_enabled' => '1',
+            'notifications_emails_present' => '1',
+            'notifications_emails' => ['sec@example.com', 'ops@example.com', 'sec@example.com'],
+            'notifications_cooldown_hours' => '6',
+            'notifications_log_access' => '1',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('firewall_settings', [
+            'key' => 'notifications.to',
+            'value' => 'sec@example.com, ops@example.com',
+        ]);
+        $this->assertDatabaseHas('firewall_settings', [
+            'key' => 'notifications.cooldown_hours',
+            'value' => '6',
+        ]);
+
+        // Invalid email inside table
+        $this->put('/firewall/settings', [
+            'notifications_enabled' => '1',
+            'notifications_emails_present' => '1',
+            'notifications_emails' => ['not-an-email'],
+        ])->assertSessionHasErrors(['notifications_emails']);
+
+        // Clearing all rows from table
+        $this->put('/firewall/settings', [
+            'notifications_enabled' => '1',
+            'notifications_emails_present' => '1',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('firewall_settings', [
+            'key' => 'notifications.to',
+            'value' => '',
+        ]);
+    }
 }

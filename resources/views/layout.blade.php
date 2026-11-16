@@ -459,6 +459,8 @@
         }
 
         input[type="text"],
+        input[type="email"],
+        input[type="password"],
         input[type="number"],
         input[type="datetime-local"],
         select,

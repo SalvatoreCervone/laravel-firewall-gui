@@ -39,5 +39,6 @@ Route::group([
 
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::put('/settings/mail', [SettingsController::class, 'updateMail'])->name('settings.mail.update');
     Route::post('/settings/test-email', [SettingsController::class, 'sendTest'])->name('settings.test-email');
 });

@@ -103,7 +103,41 @@ class FirewallMiddlewareTest extends TestCase
             'ip_address' => '198.51.100.42',
             'action' => 'notified',
         ]);
-        $this->assertSame(1, FirewallLog::query()->where('action', 'notified')->count());
+        $this->assertSame(2, FirewallLog::query()->where('action', 'notified')->count());
+    }
+
+    public function test_notify_cooldown_hours_logs_all_accesses_and_sends_second_email_after_cooldown(): void
+    {
+        Mail::fake();
+
+        config()->set('firewall-gui.mode', 'whitelist_only');
+        config()->set('firewall-gui.notifications.to', 'security@example.com');
+        config()->set('firewall-gui.notifications.cooldown_hours', 6);
+
+        Firewall::notify('198.51.100.0/24', 'Partner subnet');
+
+        // t = 0: first access -> 1st email + 1st log
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.42'])
+            ->get('/protected-endpoint')
+            ->assertOk();
+
+        // t + 5h: within 6h cooldown -> still 1 email, but 2nd log recorded
+        $this->travel(5)->hours();
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.42'])
+            ->get('/protected-endpoint')
+            ->assertOk();
+
+        Mail::assertQueued(FirewallAccessNotification::class, 1);
+        $this->assertSame(2, FirewallLog::query()->where('action', 'notified')->count());
+
+        // t + 7h: past 6h cooldown -> 2nd email + 3rd log
+        $this->travel(2)->hours();
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.42'])
+            ->get('/protected-endpoint')
+            ->assertOk();
+
+        Mail::assertQueued(FirewallAccessNotification::class, 2);
+        $this->assertSame(3, FirewallLog::query()->where('action', 'notified')->count());
     }
 
     public function test_blacklist_with_notify_on_hit_blocks_and_queues_email_once_per_day(): void

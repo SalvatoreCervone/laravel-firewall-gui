@@ -69,5 +69,9 @@ class FirewallGuiServiceProvider extends ServiceProvider
         FirewallGroup::deleted($flushCache);
         FirewallSetting::saved($flushCache);
         FirewallSetting::deleted($flushCache);
+
+        $this->app->resolving('mail.manager', function (): void {
+            $this->app->make(FirewallManager::class)->applyCustomMailerConfig();
+        });
     }
 }
