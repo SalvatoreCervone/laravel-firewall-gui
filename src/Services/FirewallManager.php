@@ -250,14 +250,19 @@ class FirewallManager
         $ruleId = (int) ($notifyRule['id'] ?? 0);
 
         $emailQueued = false;
+        $skipReason = null;
         $groupCooldown = $decision->notifyGroup['notification_cooldown_hours'] ?? null;
         $cooldownHours = max(1, (int) ($groupCooldown ?: ($settings['cooldown_hours'] ?? config('firewall-gui.notifications.cooldown_hours', 24))));
 
-        if ($settings['enabled']) {
+        if (! $settings['enabled']) {
+            $skipReason = 'email notifications disabled';
+        } else {
             $groupId = isset($decision->notifyGroup['id']) ? (int) $decision->notifyGroup['id'] : null;
             $recipients = $this->resolveRecipientsForGroup($groupId, $settings);
 
-            if ($recipients !== []) {
+            if ($recipients === []) {
+                $skipReason = 'no matching recipients';
+            } else {
                 $cooldownKey = sprintf('firewall_gui.notified.%s', md5($ip.'|'.$ruleId));
 
                 if ($this->cacheStore()->add($cooldownKey, true, now()->addHours($cooldownHours))) {
@@ -274,6 +279,8 @@ class FirewallManager
 
                     $this->queueNotificationMailable($recipients, $mailable);
                     $emailQueued = true;
+                } else {
+                    $skipReason = "notification cooldown active ({$cooldownHours}h)";
                 }
             }
         }
@@ -288,7 +295,7 @@ class FirewallManager
                 'matched_rule_id' => $notifyRule['id'] ?? null,
                 'matched_group_id' => $decision->notifyGroup['id'] ?? null,
                 'reason' => $this->formatReason(
-                    $emailQueued ? 'Access notification queued' : 'Notify rule access (notification cooldown active)',
+                    $emailQueued ? 'Access notification queued' : "Notify rule access ({$skipReason})",
                     $notifyRule
                 ),
                 'created_at' => now(),

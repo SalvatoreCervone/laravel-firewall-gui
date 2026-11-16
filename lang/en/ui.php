@@ -26,6 +26,8 @@ return [
         'plus_notify' => '+ Notify',
         'notify_alert_only' => 'Notify (Alert Only)',
         'save' => 'Save',
+        'cancel' => 'Cancel',
+        'edit' => 'Edit',
         'filter' => 'Filter',
         'reset' => 'Reset',
         'delete' => 'Delete',
@@ -127,6 +129,7 @@ return [
     'rules' => [
         'title' => 'Rules',
         'add_title' => 'Add Rule',
+        'edit_title' => 'Edit Rule',
         'add_subtitle' => 'Create a single IP, CIDR subnet, or IP range rule.',
         'ip_cidr_range' => 'IP / CIDR / Range',
         'action_type' => 'Action / Type',

@@ -26,6 +26,8 @@ return [
         'plus_notify' => '+ Email',
         'notify_alert_only' => 'Notifica (Solo Avviso)',
         'save' => 'Salva',
+        'cancel' => 'Annulla',
+        'edit' => 'Modifica',
         'filter' => 'Filtra',
         'reset' => 'Reimposta',
         'delete' => 'Elimina',
@@ -127,6 +129,7 @@ return [
     'rules' => [
         'title' => 'Regole',
         'add_title' => 'Aggiungi Regola',
+        'edit_title' => 'Modifica Regola',
         'add_subtitle' => 'Crea una regola per singolo IP, subnet CIDR o intervallo IP.',
         'ip_cidr_range' => 'IP / CIDR / Intervallo',
         'action_type' => 'Azione / Tipo',

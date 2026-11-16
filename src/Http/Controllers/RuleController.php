@@ -107,7 +107,8 @@ class RuleController extends Controller
         $groupId = isset($validated['group_id']) ? (int) $validated['group_id'] : null;
         $effectiveType = $this->resolveEffectiveType($groupId, $validated['type'] ?? null);
         $isActive = $request->has('is_active') ? $request->boolean('is_active') : $rule->is_active;
-        $notifyOnHit = $effectiveType === FirewallRule::TYPE_NOTIFY || $request->boolean('notify_on_hit', $rule->notify_on_hit);
+        $notifyOnHit = $effectiveType === FirewallRule::TYPE_NOTIFY
+            || ($request->has('notify_on_hit') ? $request->boolean('notify_on_hit') : $rule->notify_on_hit);
 
         if ($this->wouldLockOutCurrentIp($request, $isActive, $effectiveType, $normalizedValue, $ruleType)) {
             return redirect()
@@ -138,7 +139,7 @@ class RuleController extends Controller
     public function toggle(Request $request, FirewallRule $rule): RedirectResponse
     {
         $newState = ! $rule->is_active;
-        $effectiveType = $rule->group?->type ?? $rule->type;
+        $effectiveType = $rule->type;
 
         if ($this->wouldLockOutCurrentIp($request, $newState, $effectiveType, $rule->value, $rule->rule_type)) {
             return redirect()

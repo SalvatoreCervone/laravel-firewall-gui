@@ -544,4 +544,46 @@ class GuiControllerTest extends TestCase
         $this->assertTrue(\FirewallGui\LaravelFirewallGui\Facades\Firewall::check('10.10.0.5')->allowed);
         $this->assertTrue(\FirewallGui\LaravelFirewallGui\Facades\Firewall::check('10.10.0.99')->isBlocked());
     }
+
+    public function test_can_edit_existing_rule_from_gui(): void
+    {
+        $group = FirewallGroup::query()->create([
+            'name' => 'Editable Group',
+            'type' => 'mixed',
+            'priority' => 20,
+            'is_active' => true,
+        ]);
+
+        $rule = FirewallRule::query()->create([
+            'group_id' => $group->id,
+            'type' => 'whitelist',
+            'rule_type' => 'ip',
+            'value' => '10.20.30.40',
+            'label' => 'Old Label',
+            'priority' => 5,
+            'is_active' => true,
+            'notify_on_hit' => true,
+        ]);
+
+        $this->get('/firewall/rules')->assertOk()->assertSee('data-edit-rule', false);
+        $this->get("/firewall/groups/{$group->id}")->assertOk()->assertSee('edit-rule-dialog', false);
+
+        $this->put("/firewall/rules/{$rule->id}", [
+            'value' => '10.20.30.41',
+            'type' => 'blacklist',
+            'group_id' => $group->id,
+            'priority' => 99,
+            'label' => 'Updated Label',
+            'is_active' => '1',
+            'notify_on_hit' => '0',
+        ])->assertRedirect();
+
+        $fresh = $rule->fresh();
+        $this->assertSame('10.20.30.41', $fresh->value);
+        $this->assertSame('blacklist', $fresh->type);
+        $this->assertSame(99, $fresh->priority);
+        $this->assertSame('Updated Label', $fresh->label);
+        $this->assertTrue($fresh->is_active);
+        $this->assertFalse($fresh->notify_on_hit);
+    }
 }

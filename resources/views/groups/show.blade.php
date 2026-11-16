@@ -277,6 +277,21 @@
                                 </td>
                                 <td>
                                     <div class="actions-cell">
+                                        <button type="button"
+                                                class="btn btn-secondary btn-sm"
+                                                data-edit-rule
+                                                data-action="{{ route('firewall-gui.rules.update', $rule) }}"
+                                                data-value="{{ $rule->value }}"
+                                                data-type="{{ $rule->type }}"
+                                                data-group-id="{{ $rule->group_id ?? '' }}"
+                                                data-priority="{{ $rule->priority ?? 0 }}"
+                                                data-label="{{ $rule->label ?? '' }}"
+                                                data-expires="{{ $rule->expires_at ? $rule->expires_at->format('Y-m-d\TH:i') : '' }}"
+                                                data-active="{{ $rule->is_active ? '1' : '0' }}"
+                                                data-notify="{{ $rule->notify_on_hit ? '1' : '0' }}">
+                                            {{ __('firewall-gui::ui.common.edit') }}
+                                        </button>
+
                                         <form method="POST" action="{{ route('firewall-gui.rules.toggle', $rule) }}" class="inline-form">
                                             @csrf
                                             @method('PATCH')
@@ -308,4 +323,6 @@
             @endif
         @endif
     </div>
+
+    @include('firewall-gui::rules.partials.edit-dialog')
 @endsection

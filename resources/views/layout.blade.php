@@ -510,6 +510,21 @@
             font-size: 0.8rem;
         }
 
+        dialog.fw-dialog {
+            margin: auto;
+            padding: 0;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            width: min(640px, calc(100vw - 2rem));
+            box-shadow: var(--shadow-md);
+        }
+
+        dialog.fw-dialog::backdrop {
+            background: rgb(15 23 42 / 0.55);
+        }
+
         label {
             font-size: 0.825rem;
             font-weight: 600;
