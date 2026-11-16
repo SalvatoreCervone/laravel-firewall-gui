@@ -118,4 +118,37 @@ class FirewallManagerTest extends TestCase
         $this->assertTrue(Firewall::check('198.51.100.50')->isBlocked());
         $this->assertTrue(Firewall::check('198.51.100.51')->allowed);
     }
+
+    public function test_higher_priority_rule_wins_within_same_group(): void
+    {
+        $group = FirewallGroup::query()->create([
+            'name' => 'Office',
+            'type' => 'mixed',
+            'priority' => 50,
+            'is_active' => true,
+        ]);
+
+        FirewallRule::query()->create([
+            'group_id' => $group->id,
+            'type' => 'whitelist',
+            'rule_type' => 'cidr',
+            'value' => '10.10.0.0/24',
+            'priority' => 10,
+            'is_active' => true,
+        ]);
+
+        FirewallRule::query()->create([
+            'group_id' => $group->id,
+            'type' => 'blacklist',
+            'rule_type' => 'ip',
+            'value' => '10.10.0.99',
+            'priority' => 100,
+            'is_active' => true,
+        ]);
+
+        Firewall::clearCache();
+
+        $this->assertTrue(Firewall::check('10.10.0.99')->isBlocked());
+        $this->assertTrue(Firewall::check('10.10.0.50')->allowed);
+    }
 }

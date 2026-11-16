@@ -27,6 +27,7 @@ class RuleController extends Controller
 
         $query = FirewallRule::query()
             ->with('group')
+            ->orderByDesc('priority')
             ->latest();
 
         if (! empty($filters['type'])) {
@@ -53,7 +54,7 @@ class RuleController extends Controller
 
         return view('firewall-gui::rules.index', [
             'rules' => $query->paginate($perPage)->withQueryString(),
-            'groups' => FirewallGroup::query()->orderBy('name')->get(),
+            'groups' => FirewallGroup::query()->orderByDesc('priority')->orderBy('name')->get(),
             'currentIp' => (string) $request->ip(),
             'filters' => $filters,
         ]);
@@ -86,6 +87,7 @@ class RuleController extends Controller
             'label' => $validated['label'] ?? null,
             'is_active' => $isActive,
             'notify_on_hit' => $notifyOnHit,
+            'priority' => (int) ($validated['priority'] ?? 0),
             'expires_at' => ! empty($validated['expires_at']) ? Carbon::parse((string) $validated['expires_at']) : null,
             'created_by' => 'gui',
         ]);
@@ -122,6 +124,7 @@ class RuleController extends Controller
             'label' => $validated['label'] ?? null,
             'is_active' => $isActive,
             'notify_on_hit' => $notifyOnHit,
+            'priority' => (int) ($validated['priority'] ?? 0),
             'expires_at' => ! empty($validated['expires_at']) ? Carbon::parse((string) $validated['expires_at']) : null,
         ]);
 
@@ -267,6 +270,7 @@ class RuleController extends Controller
             'expires_at' => ['nullable', 'date'],
             'is_active' => ['nullable', 'boolean'],
             'notify_on_hit' => ['nullable', 'boolean'],
+            'priority' => ['nullable', 'integer'],
         ]);
     }
 

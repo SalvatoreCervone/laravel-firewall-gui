@@ -76,13 +76,6 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="notify_on_hit" value="1" {{ old('notify_on_hit', $group->notify_on_hit) ? 'checked' : '' }}>
-                        <span>{{ __('firewall-gui::ui.groups.email_alert_on_hit') }}</span>
-                    </label>
-                </div>
-
-                <div class="form-group">
                     <button type="submit" class="btn btn-primary">{{ __('firewall-gui::ui.groups.save_button') }}</button>
                 </div>
             </form>
@@ -121,6 +114,15 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="group-rule-priority">{{ __('firewall-gui::ui.groups.priority') }}</label>
+                    <input type="number"
+                           id="group-rule-priority"
+                           name="priority"
+                           value="{{ old('priority', 0) }}"
+                           step="1">
+                </div>
+
+                <div class="form-group">
                     <label for="group-rule-label">{{ __('firewall-gui::ui.rules.label_optional') }}</label>
                     <input type="text"
                            id="group-rule-label"
@@ -146,7 +148,7 @@
 
                 <div class="form-group">
                     <label class="checkbox-label">
-                        <input type="checkbox" name="notify_on_hit" value="1" {{ old('notify_on_hit', $group->notify_on_hit) ? 'checked' : '' }}>
+                        <input type="checkbox" name="notify_on_hit" value="1" {{ old('notify_on_hit', false) ? 'checked' : '' }}>
                         <span>{{ __('firewall-gui::ui.rules.email_alert_on_hit') }}</span>
                     </label>
                 </div>
@@ -192,6 +194,13 @@
                 </div>
 
                 <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="notify_on_hit" value="1" {{ old('notify_on_hit', false) ? 'checked' : '' }}>
+                        <span>{{ __('firewall-gui::ui.rules.email_alert_on_hit') }}</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
                     <button type="submit" class="btn btn-primary">{{ __('firewall-gui::ui.groups.bulk_import_button') }}</button>
                 </div>
             </form>
@@ -218,6 +227,7 @@
                             <th>{{ __('firewall-gui::ui.rules.col_value') }}</th>
                             <th>{{ __('firewall-gui::ui.rules.col_format') }}</th>
                             <th>{{ __('firewall-gui::ui.rules.col_type') }}</th>
+                            <th>{{ __('firewall-gui::ui.groups.col_priority') }}</th>
                             <th>{{ __('firewall-gui::ui.rules.col_label') }}</th>
                             <th>{{ __('firewall-gui::ui.rules.col_expiration') }}</th>
                             <th>{{ __('firewall-gui::ui.common.status') }}</th>
@@ -253,6 +263,7 @@
                                         <span class="badge badge-blue" style="margin-left: 0.25rem;">{{ __('firewall-gui::ui.common.plus_notify') }}</span>
                                     @endif
                                 </td>
+                                <td class="mono">{{ $rule->priority ?? 0 }}</td>
                                 <td>{{ $rule->label ?: '—' }}</td>
                                 <td class="mono text-muted">
                                     {{ $rule->expires_at ? $rule->expires_at->format('Y-m-d H:i') : __('firewall-gui::ui.common.never') }}

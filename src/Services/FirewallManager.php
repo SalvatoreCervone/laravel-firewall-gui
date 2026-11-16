@@ -726,7 +726,8 @@ class FirewallManager
 
             foreach ($rules as $rule) {
                 $effectiveType = $rule->type;
-                $priority = (int) ($rule->group?->priority ?? 0);
+                $groupPriority = (int) ($rule->group?->priority ?? 0);
+                $rulePriority = (int) ($rule->priority ?? 0);
 
                 $item = [
                     'id' => $rule->id,
@@ -734,7 +735,8 @@ class FirewallManager
                     'rule_type' => $rule->rule_type,
                     'value' => $rule->value,
                     'label' => $rule->label,
-                    'priority' => $priority,
+                    'priority' => $groupPriority,
+                    'rule_priority' => $rulePriority,
                     'notify_on_hit' => $effectiveType === FirewallRule::TYPE_NOTIFY
                         || $rule->notify_on_hit
                         || ($rule->group?->notify_on_hit ?? false),
@@ -744,7 +746,7 @@ class FirewallManager
                         'name' => $rule->group->name,
                         'slug' => $rule->group->slug,
                         'type' => $rule->group->type,
-                        'priority' => $priority,
+                        'priority' => $groupPriority,
                         'notification_cooldown_hours' => $rule->group->notification_cooldown_hours,
                     ] : null,
                 ];
@@ -760,9 +762,14 @@ class FirewallManager
             ];
 
             usort($payload['ordered'], static function (array $a, array $b) use ($typeOrder): int {
-                $prioCmp = ($b['priority'] ?? 0) <=> ($a['priority'] ?? 0);
-                if ($prioCmp !== 0) {
-                    return $prioCmp;
+                $groupCmp = ($b['priority'] ?? 0) <=> ($a['priority'] ?? 0);
+                if ($groupCmp !== 0) {
+                    return $groupCmp;
+                }
+
+                $ruleCmp = ($b['rule_priority'] ?? 0) <=> ($a['rule_priority'] ?? 0);
+                if ($ruleCmp !== 0) {
+                    return $ruleCmp;
                 }
 
                 return ($typeOrder[$a['type']] ?? 9) <=> ($typeOrder[$b['type']] ?? 9);

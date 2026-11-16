@@ -61,13 +61,6 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="notify_on_hit" value="1" {{ old('notify_on_hit', false) ? 'checked' : '' }}>
-                        <span>{{ __('firewall-gui::ui.groups.email_alert_on_hit') }}</span>
-                    </label>
-                </div>
-
-                <div class="form-group">
                     <button type="submit" class="btn btn-primary">{{ __('firewall-gui::ui.groups.create_button') }}</button>
                 </div>
             </form>

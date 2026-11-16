@@ -16,6 +16,8 @@ use Illuminate\Support\Carbon;
  * @property string $value
  * @property string|null $label
  * @property bool $is_active
+ * @property bool $notify_on_hit
+ * @property int $priority
  * @property Carbon|null $expires_at
  * @property string|null $created_by
  */
@@ -35,6 +37,7 @@ class FirewallRule extends Model
         'label',
         'is_active',
         'notify_on_hit',
+        'priority',
         'expires_at',
         'created_by',
     ];
@@ -43,6 +46,7 @@ class FirewallRule extends Model
         'group_id' => 'integer',
         'is_active' => 'boolean',
         'notify_on_hit' => 'boolean',
+        'priority' => 'integer',
         'expires_at' => 'datetime',
     ];
 

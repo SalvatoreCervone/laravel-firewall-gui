@@ -56,6 +56,15 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="rule-priority">{{ __('firewall-gui::ui.groups.priority') }}</label>
+                    <input type="number"
+                           id="rule-priority"
+                           name="priority"
+                           value="{{ old('priority', 0) }}"
+                           step="1">
+                </div>
+
+                <div class="form-group">
                     <label for="rule-expires">{{ __('firewall-gui::ui.rules.expires_optional') }}</label>
                     <input type="datetime-local"
                            id="rule-expires"
@@ -212,6 +221,7 @@
                             <th>{{ __('firewall-gui::ui.rules.col_value') }}</th>
                             <th>{{ __('firewall-gui::ui.rules.col_format') }}</th>
                             <th>{{ __('firewall-gui::ui.rules.col_type') }}</th>
+                            <th>{{ __('firewall-gui::ui.groups.col_priority') }}</th>
                             <th>{{ __('firewall-gui::ui.rules.col_group') }}</th>
                             <th>{{ __('firewall-gui::ui.rules.col_label') }}</th>
                             <th>{{ __('firewall-gui::ui.rules.col_expiration') }}</th>
@@ -248,6 +258,7 @@
                                         <span class="badge badge-blue" style="margin-left: 0.25rem;">{{ __('firewall-gui::ui.common.plus_notify') }}</span>
                                     @endif
                                 </td>
+                                <td class="mono">{{ $rule->priority ?? 0 }}</td>
                                 <td>
                                     @if ($rule->group)
                                         <a href="{{ route('firewall-gui.groups.show', $rule->group) }}">{{ $rule->group->name }}</a>

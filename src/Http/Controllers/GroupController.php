@@ -101,7 +101,8 @@ class GroupController extends Controller
         $perPage = (int) config('firewall-gui.gui.per_page', 20);
 
         $rules = $group->rules()
-            ->latest()
+            ->orderByDesc('priority')
+            ->orderByDesc('id')
             ->paginate($perPage);
 
         return view('firewall-gui::groups.show', [

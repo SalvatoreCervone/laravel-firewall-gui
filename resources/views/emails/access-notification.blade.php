@@ -11,7 +11,7 @@
                 Firewall {{ $decisionAction === 'blocked' ? 'Blocked' : 'Access' }} Notification
             </h2>
             <p style="margin: 4px 0 0; font-size: 13px; color: #94a3b8;">
-                First {{ $decisionAction === 'blocked' ? 'blocked attempt' : 'access' }} of the day detected for a watched IP / range.
+                {{ $decisionAction === 'blocked' ? 'Blocked attempt' : 'Access' }} detected for a watched IP / range.
             </p>
         </div>
 
