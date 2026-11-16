@@ -63,7 +63,7 @@ class SettingsController extends Controller
                 return redirect()
                     ->back()
                     ->withInput()
-                    ->withErrors([$errorKey => "Invalid email address: [{$email}]."]);
+                    ->withErrors([$errorKey => __('firewall-gui::settings.notifications.invalid_email', ['email' => $email])]);
             }
         }
 
@@ -89,7 +89,7 @@ class SettingsController extends Controller
 
         return redirect()
             ->back()
-            ->with('success', 'Notification settings saved.');
+            ->with('success', __('firewall-gui::settings.notifications.saved_message'));
     }
 
     public function updateMail(Request $request): RedirectResponse
@@ -136,7 +136,7 @@ class SettingsController extends Controller
 
         return redirect()
             ->back()
-            ->with('success', 'Mail server settings saved.');
+            ->with('success', __('firewall-gui::settings.mail.saved_message'));
     }
 
     public function sendTest(Request $request): RedirectResponse
@@ -164,6 +164,6 @@ class SettingsController extends Controller
 
         return redirect()
             ->back()
-            ->with('success', "Test notification email queued for [{$validated['test_email']}].");
+            ->with('success', __('firewall-gui::settings.test.queued_message', ['email' => $validated['test_email']]));
     }
 }

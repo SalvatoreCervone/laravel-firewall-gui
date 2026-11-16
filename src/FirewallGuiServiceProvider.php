@@ -31,6 +31,7 @@ class FirewallGuiServiceProvider extends ServiceProvider
 
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'firewall-gui');
+        $this->loadTranslationsFrom(__DIR__.'/../lang', 'firewall-gui');
 
         if ((bool) config('firewall-gui.gui.enabled', true)) {
             $this->loadRoutesFrom(__DIR__.'/../routes/web.php');

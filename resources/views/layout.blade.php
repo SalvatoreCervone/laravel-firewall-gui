@@ -452,6 +452,53 @@
             grid-column: 1 / -1;
         }
 
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem 1.25rem;
+            align-items: start;
+        }
+
+        @media (max-width: 720px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-hint {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.35;
+        }
+
+        .settings-toggles {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem 1.75rem;
+            padding: 0.25rem 0;
+        }
+
+        .settings-actions {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .settings-inline-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.875rem;
+            align-items: flex-end;
+        }
+
+        .settings-inline-row .form-group {
+            flex: 1 1 260px;
+        }
+
         label {
             font-size: 0.825rem;
             font-weight: 600;

@@ -380,4 +380,15 @@ class GuiControllerTest extends TestCase
             'value' => '',
         ]);
     }
+
+    public function test_settings_page_renders_italian_translations_when_locale_is_it(): void
+    {
+        app()->setLocale('it');
+
+        $this->get('/firewall/settings')
+            ->assertOk()
+            ->assertSee('Impostazioni Notifiche Email')
+            ->assertSee('Impostazioni Server Mail')
+            ->assertSee('Invia Email di Test');
+    }
 }
