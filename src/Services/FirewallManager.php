@@ -600,31 +600,8 @@ class FirewallManager
         }
 
         $recipientList = is_array($recipients) ? implode(', ', $recipients) : (string) $recipients;
-        $log = null;
-
-        try {
-            $ruleId = isset($mailable->matchedRule['id']) && (int) $mailable->matchedRule['id'] > 0
-                ? (int) $mailable->matchedRule['id']
-                : null;
-            $groupId = isset($mailable->matchedGroup['id']) && (int) $mailable->matchedGroup['id'] > 0
-                ? (int) $mailable->matchedGroup['id']
-                : null;
-
-            $log = FirewallNotificationLog::query()->create([
-                'ip_address' => $mailable->ipAddress,
-                'decision_action' => $mailable->decisionAction,
-                'recipients' => $recipientList,
-                'subject' => $mailable->envelope()->subject,
-                'status' => FirewallNotificationLog::STATUS_QUEUED,
-                'matched_rule_id' => $ruleId,
-                'matched_group_id' => $groupId,
-                'created_at' => now(),
-            ]);
-
-            $mailable->notificationLogId = $log->id;
-        } catch (\Throwable) {
-            // Do not fail mail dispatch if notification log table is not yet migrated
-        }
+        $log = $this->recordNotificationLog($mailable, $recipientList);
+        $mailable->notificationLogId = $log->id;
 
         $customMailer = $this->applyCustomMailerConfig();
 
@@ -644,6 +621,27 @@ class FirewallManager
 
             throw $e;
         }
+    }
+
+    protected function recordNotificationLog(FirewallAccessNotification $mailable, string $recipientList): FirewallNotificationLog
+    {
+        $ruleId = isset($mailable->matchedRule['id']) && (int) $mailable->matchedRule['id'] > 0
+            ? (int) $mailable->matchedRule['id']
+            : null;
+        $groupId = isset($mailable->matchedGroup['id']) && (int) $mailable->matchedGroup['id'] > 0
+            ? (int) $mailable->matchedGroup['id']
+            : null;
+
+        return FirewallNotificationLog::query()->create([
+            'ip_address' => mb_substr($mailable->ipAddress, 0, 45),
+            'decision_action' => mb_substr($mailable->decisionAction, 0, 30),
+            'recipients' => $recipientList,
+            'subject' => mb_substr((string) $mailable->envelope()->subject, 0, 255),
+            'status' => FirewallNotificationLog::STATUS_QUEUED,
+            'matched_rule_id' => $ruleId,
+            'matched_group_id' => $groupId,
+            'created_at' => now(),
+        ]);
     }
 
     /**

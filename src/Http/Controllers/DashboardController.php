@@ -7,6 +7,7 @@ use FirewallGui\LaravelFirewallGui\Models\FirewallLog;
 use FirewallGui\LaravelFirewallGui\Models\FirewallRule;
 use FirewallGui\LaravelFirewallGui\Services\FirewallManager;
 use FirewallGui\LaravelFirewallGui\Support\FirewallDecision;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,11 +39,32 @@ class DashboardController extends Controller
                 ->count(),
         ];
 
-        $recentLogs = FirewallLog::query()
+        $filters = $request->only(['action', 'ip', 'search']);
+
+        $logsQuery = FirewallLog::query()
             ->with(['rule', 'group'])
             ->latest('created_at')
-            ->limit(8)
-            ->get();
+            ->latest('id');
+
+        if (! empty($filters['action'])) {
+            $logsQuery->where('action', $filters['action']);
+        }
+
+        if (! empty($filters['ip'])) {
+            $logsQuery->where('ip_address', 'like', '%'.trim((string) $filters['ip']).'%');
+        }
+
+        if (! empty($filters['search'])) {
+            $search = trim((string) $filters['search']);
+            $logsQuery->where(function (Builder $q) use ($search): void {
+                $q->where('ip_address', 'like', "%{$search}%")
+                    ->orWhere('path', 'like', "%{$search}%")
+                    ->orWhere('reason', 'like', "%{$search}%")
+                    ->orWhere('user_agent', 'like', "%{$search}%");
+            });
+        }
+
+        $perPage = (int) config('firewall-gui.gui.per_page', 20);
 
         $testIp = $request->query('test_ip');
         $testResult = null;
@@ -60,7 +82,8 @@ class DashboardController extends Controller
             'isEnabled' => $this->firewall->isEnabled(),
             'isDryRun' => $this->firewall->isDryRun(),
             'mode' => $this->firewall->mode(),
-            'recentLogs' => $recentLogs,
+            'logs' => $logsQuery->paginate($perPage)->withQueryString(),
+            'filters' => $filters,
             'testIp' => $testIp,
             'testResult' => $testResult,
         ]);

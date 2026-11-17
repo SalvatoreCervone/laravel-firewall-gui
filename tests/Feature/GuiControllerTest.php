@@ -176,7 +176,9 @@ class GuiControllerTest extends TestCase
             'created_at' => now(),
         ]);
 
-        $this->get('/firewall/logs')->assertOk()->assertSee('203.0.113.200');
+        $this->get('/firewall')->assertOk()->assertSee('203.0.113.200');
+        $this->get('/firewall?action=notified')->assertOk()->assertDontSee('203.0.113.200');
+        $this->get('/firewall/logs')->assertRedirect('/firewall');
 
         $this->post("/firewall/logs/{$log->id}/allow")->assertRedirect();
 
@@ -413,7 +415,7 @@ class GuiControllerTest extends TestCase
         $this->get('/firewall')
             ->assertOk()
             ->assertSee('Simulatore Test IP')
-            ->assertSee('Richieste Bloccate Recenti');
+            ->assertSee('Log del Firewall');
     }
 
     public function test_settings_page_saves_per_recipient_group_filters(): void
@@ -647,5 +649,30 @@ class GuiControllerTest extends TestCase
 
         $this->delete('/firewall/email-logs')->assertRedirect();
         $this->assertDatabaseCount('firewall_notification_logs', 0);
+    }
+
+    public function test_email_logs_records_sent_status_with_real_mailer_and_sync_queue(): void
+    {
+        config([
+            'mail.default' => 'array',
+            'queue.default' => 'sync',
+        ]);
+
+        $this->post('/firewall/settings/test-email', [
+            'test_email' => 'real-send@example.com',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('firewall_notification_logs', [
+            'recipients' => 'real-send@example.com',
+            'status' => 'sent',
+        ]);
+
+        $log = \FirewallGui\LaravelFirewallGui\Models\FirewallNotificationLog::query()->firstOrFail();
+        $this->assertNotNull($log->sent_at);
+
+        $this->get('/firewall/email-logs')
+            ->assertOk()
+            ->assertSee('real-send@example.com')
+            ->assertSee('Sent');
     }
 }

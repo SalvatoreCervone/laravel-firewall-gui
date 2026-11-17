@@ -17,39 +17,9 @@ class LogController extends Controller
         protected FirewallManager $firewall,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
-        $filters = $request->only(['action', 'ip', 'search']);
-
-        $query = FirewallLog::query()
-            ->with(['rule', 'group'])
-            ->latest('created_at');
-
-        if (! empty($filters['action'])) {
-            $query->where('action', $filters['action']);
-        }
-
-        if (! empty($filters['ip'])) {
-            $query->where('ip_address', 'like', '%'.(string) $filters['ip'].'%');
-        }
-
-        if (! empty($filters['search'])) {
-            $search = (string) $filters['search'];
-            $query->where(function (Builder $q) use ($search): void {
-                $q->where('ip_address', 'like', "%{$search}%")
-                    ->orWhere('path', 'like', "%{$search}%")
-                    ->orWhere('reason', 'like', "%{$search}%")
-                    ->orWhere('user_agent', 'like', "%{$search}%");
-            });
-        }
-
-        $perPage = (int) config('firewall-gui.gui.per_page', 20);
-
-        return view('firewall-gui::logs.index', [
-            'logs' => $query->paginate($perPage)->withQueryString(),
-            'currentIp' => (string) $request->ip(),
-            'filters' => $filters,
-        ]);
+        return redirect()->route('firewall-gui.dashboard', $request->query());
     }
 
     public function allowIp(Request $request, FirewallLog $log): RedirectResponse
