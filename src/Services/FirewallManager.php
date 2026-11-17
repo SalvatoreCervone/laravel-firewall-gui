@@ -252,8 +252,8 @@ class FirewallManager
 
         $emailQueued = false;
         $skipReason = null;
-        $groupCooldown = $decision->notifyGroup['notification_cooldown_hours'] ?? null;
-        $cooldownHours = max(1, (int) ($groupCooldown ?: ($settings['cooldown_hours'] ?? config('firewall-gui.notifications.cooldown_hours', 24))));
+        $groupCooldownMinutes = $decision->notifyGroup['notification_cooldown_minutes'] ?? null;
+        $cooldownMinutes = max(1, (int) ($groupCooldownMinutes ?: ($settings['cooldown_minutes'] ?? config('firewall-gui.notifications.cooldown_minutes', 60))));
 
         if (! $settings['enabled']) {
             $skipReason = 'email notifications disabled';
@@ -266,7 +266,7 @@ class FirewallManager
             } else {
                 $cooldownKey = sprintf('firewall_gui.notified.%s', md5($ip.'|'.$ruleId));
 
-                if ($this->cacheStore()->add($cooldownKey, true, now()->addHours($cooldownHours))) {
+                if ($this->cacheStore()->add($cooldownKey, true, now()->addMinutes($cooldownMinutes))) {
                     $mailable = new FirewallAccessNotification(
                         ipAddress: $ip,
                         method: $request->method(),
@@ -281,7 +281,7 @@ class FirewallManager
                     $this->queueNotificationMailable($recipients, $mailable);
                     $emailQueued = true;
                 } else {
-                    $skipReason = "notification cooldown active ({$cooldownHours}h)";
+                    $skipReason = "notification cooldown active ({$cooldownMinutes}m)";
                 }
             }
         }
@@ -332,7 +332,7 @@ class FirewallManager
                 $this->parseNotificationRecipients($defaultTo)
             ),
             'queue' => config('firewall-gui.notifications.queue') ?: null,
-            'cooldown_hours' => max(1, (int) config('firewall-gui.notifications.cooldown_hours', 24)),
+            'cooldown_minutes' => max(1, (int) config('firewall-gui.notifications.cooldown_minutes', 60)),
             'on_unmatched_block' => (bool) config('firewall-gui.notifications.on_unmatched_block', true),
             'log_access' => (bool) config('firewall-gui.notifications.log_access', true),
         ];
@@ -345,6 +345,7 @@ class FirewallManager
                         'notifications.to',
                         'notifications.recipients',
                         'notifications.queue',
+                        'notifications.cooldown_minutes',
                         'notifications.cooldown_hours',
                         'notifications.on_unmatched_block',
                         'notifications.log_access',
@@ -382,8 +383,10 @@ class FirewallManager
             if ($rows->has('notifications.queue')) {
                 $defaults['queue'] = $rows->get('notifications.queue') ?: null;
             }
-            if ($rows->has('notifications.cooldown_hours')) {
-                $defaults['cooldown_hours'] = max(1, (int) $rows->get('notifications.cooldown_hours'));
+            if ($rows->has('notifications.cooldown_minutes')) {
+                $defaults['cooldown_minutes'] = max(1, (int) $rows->get('notifications.cooldown_minutes'));
+            } elseif ($rows->has('notifications.cooldown_hours')) {
+                $defaults['cooldown_minutes'] = max(1, (int) $rows->get('notifications.cooldown_hours') * 60);
             }
             if ($rows->has('notifications.on_unmatched_block')) {
                 $defaults['on_unmatched_block'] = $rows->get('notifications.on_unmatched_block') === '1';
@@ -791,7 +794,8 @@ class FirewallManager
                         'slug' => $rule->group->slug,
                         'type' => $rule->group->type,
                         'priority' => $groupPriority,
-                        'notification_cooldown_hours' => $rule->group->notification_cooldown_hours,
+                        'notification_cooldown_minutes' => $rule->group->notification_cooldown_minutes
+                            ?? ($rule->group->notification_cooldown_hours !== null ? $rule->group->notification_cooldown_hours * 60 : null),
                     ] : null,
                 ];
 

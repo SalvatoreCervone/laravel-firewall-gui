@@ -53,11 +53,11 @@
                     <label for="edit-group-cooldown">{{ __('firewall-gui::ui.groups.cooldown_hours') }}</label>
                     <input type="number"
                            id="edit-group-cooldown"
-                           name="notification_cooldown_hours"
+                           name="notification_cooldown_minutes"
                            min="1"
-                           max="8760"
-                           value="{{ old('notification_cooldown_hours', $group->notification_cooldown_hours) }}"
-                           placeholder="{{ __('firewall-gui::ui.groups.cooldown_placeholder', ['hours' => $globalCooldownHours ?? 24]) }}">
+                           max="525600"
+                           value="{{ old('notification_cooldown_minutes', $group->notification_cooldown_minutes ?? ($group->notification_cooldown_hours ? $group->notification_cooldown_hours * 60 : null)) }}"
+                           placeholder="{{ __('firewall-gui::ui.groups.cooldown_placeholder', ['minutes' => $globalCooldownMinutes ?? 60]) }}">
                 </div>
 
                 <div class="form-group" style="grid-column: span 2;">

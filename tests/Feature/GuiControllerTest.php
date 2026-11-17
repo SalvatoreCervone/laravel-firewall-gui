@@ -349,7 +349,7 @@ class GuiControllerTest extends TestCase
             'notifications_enabled' => '1',
             'notifications_emails_present' => '1',
             'notifications_emails' => ['sec@example.com', 'ops@example.com', 'sec@example.com'],
-            'notifications_cooldown_hours' => '6',
+            'notifications_cooldown_minutes' => '15',
             'notifications_log_access' => '1',
         ])->assertRedirect();
 
@@ -358,8 +358,8 @@ class GuiControllerTest extends TestCase
             'value' => 'sec@example.com, ops@example.com',
         ]);
         $this->assertDatabaseHas('firewall_settings', [
-            'key' => 'notifications.cooldown_hours',
-            'value' => '6',
+            'key' => 'notifications.cooldown_minutes',
+            'value' => '15',
         ]);
 
         // Invalid email inside table

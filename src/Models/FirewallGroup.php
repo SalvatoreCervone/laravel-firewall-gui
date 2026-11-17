@@ -15,6 +15,7 @@ use Illuminate\Support\Str;
  * @property bool $is_active
  * @property bool $notify_on_hit
  * @property int|null $notification_cooldown_hours
+ * @property int|null $notification_cooldown_minutes
  * @property int $priority
  */
 class FirewallGroup extends Model
@@ -29,6 +30,7 @@ class FirewallGroup extends Model
         'is_active',
         'notify_on_hit',
         'notification_cooldown_hours',
+        'notification_cooldown_minutes',
         'priority',
     ];
 
@@ -36,6 +38,7 @@ class FirewallGroup extends Model
         'is_active' => 'boolean',
         'notify_on_hit' => 'boolean',
         'notification_cooldown_hours' => 'integer',
+        'notification_cooldown_minutes' => 'integer',
         'priority' => 'integer',
     ];
 

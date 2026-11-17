@@ -112,7 +112,7 @@ class FirewallMiddlewareTest extends TestCase
 
         config()->set('firewall-gui.mode', 'whitelist_only');
         config()->set('firewall-gui.notifications.to', 'security@example.com');
-        config()->set('firewall-gui.notifications.cooldown_hours', 6);
+        config()->set('firewall-gui.notifications.cooldown_minutes', 60);
 
         Firewall::notify('198.51.100.0/24', 'Partner subnet');
 
@@ -121,8 +121,8 @@ class FirewallMiddlewareTest extends TestCase
             ->get('/protected-endpoint')
             ->assertOk();
 
-        // t + 5h: within 6h cooldown -> still 1 email, but 2nd log recorded
-        $this->travel(5)->hours();
+        // t + 50m: within 60m cooldown -> still 1 email, but 2nd log recorded
+        $this->travel(50)->minutes();
         $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.42'])
             ->get('/protected-endpoint')
             ->assertOk();
@@ -130,8 +130,8 @@ class FirewallMiddlewareTest extends TestCase
         Mail::assertQueued(FirewallAccessNotification::class, 1);
         $this->assertSame(2, FirewallLog::query()->where('action', 'notified')->count());
 
-        // t + 7h: past 6h cooldown -> 2nd email + 3rd log
-        $this->travel(2)->hours();
+        // t + 70m: past 60m cooldown -> 2nd email + 3rd log
+        $this->travel(20)->minutes();
         $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.42'])
             ->get('/protected-endpoint')
             ->assertOk();
@@ -169,14 +169,14 @@ class FirewallMiddlewareTest extends TestCase
 
         config()->set('firewall-gui.mode', 'whitelist_only');
         config()->set('firewall-gui.notifications.to', 'security@example.com');
-        config()->set('firewall-gui.notifications.cooldown_hours', 24);
+        config()->set('firewall-gui.notifications.cooldown_minutes', 60);
 
         $group = \FirewallGui\LaravelFirewallGui\Models\FirewallGroup::query()->create([
-            'name' => 'Consultants 3h',
+            'name' => 'Consultants 15m',
             'type' => 'notify',
             'is_active' => true,
             'notify_on_hit' => true,
-            'notification_cooldown_hours' => 3,
+            'notification_cooldown_minutes' => 15,
         ]);
 
         Firewall::notify('198.51.100.10', 'Consultant IP', $group->id);
@@ -186,16 +186,16 @@ class FirewallMiddlewareTest extends TestCase
             ->get('/protected-endpoint')
             ->assertOk();
 
-        // t + 2h: still within 3h group cooldown -> still 1 email
-        $this->travel(2)->hours();
+        // t + 10m: still within 15m group cooldown -> still 1 email
+        $this->travel(10)->minutes();
         $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.10'])
             ->get('/protected-endpoint')
             ->assertOk();
 
         Mail::assertQueued(FirewallAccessNotification::class, 1);
 
-        // t + 4h: past 3h group cooldown (even though global is 24h) -> 2nd email
-        $this->travel(2)->hours();
+        // t + 20m: past 15m group cooldown (even though global is 60m) -> 2nd email
+        $this->travel(10)->minutes();
         $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.10'])
             ->get('/protected-endpoint')
             ->assertOk();

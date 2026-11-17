@@ -65,8 +65,7 @@ class SettingsController extends Controller
             'notifications_recipients.*.group_ids.*' => ['integer'],
             'notifications_emails_present' => ['nullable', 'boolean'],
             'notifications_queue' => ['nullable', 'string', 'max:100'],
-            'notifications_cooldown_hours' => ['nullable', 'integer', 'min:1', 'max:8760'],
-            'notifications_on_unmatched_block' => ['nullable', 'boolean'],
+            'notifications_cooldown_minutes' => ['nullable', 'integer', 'min:1', 'max:525600'],
             'notifications_log_access' => ['nullable', 'boolean'],
         ]);
 
@@ -126,8 +125,8 @@ class SettingsController extends Controller
             'notifications.log_access' => $request->boolean('notifications_log_access') ? '1' : '0',
         ];
 
-        if (isset($validated['notifications_cooldown_hours'])) {
-            $pairs['notifications.cooldown_hours'] = (string) $validated['notifications_cooldown_hours'];
+        if (isset($validated['notifications_cooldown_minutes'])) {
+            $pairs['notifications.cooldown_minutes'] = (string) $validated['notifications_cooldown_minutes'];
         }
 
         foreach ($pairs as $key => $value) {

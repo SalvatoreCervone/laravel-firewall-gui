@@ -148,10 +148,10 @@
                     <label for="notifications-cooldown">{{ __('firewall-gui::settings.notifications.cooldown_label') }}</label>
                     <input type="number"
                            id="notifications-cooldown"
-                           name="notifications_cooldown_hours"
+                           name="notifications_cooldown_minutes"
                            min="1"
-                           max="8760"
-                           value="{{ old('notifications_cooldown_hours', $settings['cooldown_hours'] ?? 24) }}"
+                           max="525600"
+                           value="{{ old('notifications_cooldown_minutes', $settings['cooldown_minutes'] ?? 60) }}"
                            required>
                     <span class="form-hint">{{ __('firewall-gui::settings.notifications.cooldown_help') }}</span>
                 </div>

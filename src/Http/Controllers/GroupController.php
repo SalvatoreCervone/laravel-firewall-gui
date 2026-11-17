@@ -32,7 +32,7 @@ class GroupController extends Controller
 
         return view('firewall-gui::groups.index', [
             'groups' => $groups,
-            'globalCooldownHours' => $this->firewall->getNotificationSettings()['cooldown_hours'] ?? 24,
+            'globalCooldownMinutes' => $this->firewall->getNotificationSettings()['cooldown_minutes'] ?? 60,
             'defaultRule' => $this->firewall->getDefaultRuleSettings(),
             'currentIp' => (string) $request->ip(),
         ]);
@@ -70,7 +70,7 @@ class GroupController extends Controller
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
             'notify_on_hit' => ['nullable', 'boolean'],
-            'notification_cooldown_hours' => ['nullable', 'integer', 'min:1', 'max:8760'],
+            'notification_cooldown_minutes' => ['nullable', 'integer', 'min:1', 'max:525600'],
             'priority' => ['nullable', 'integer'],
         ]);
 
@@ -83,8 +83,8 @@ class GroupController extends Controller
             'description' => $validated['description'] ?? null,
             'is_active' => $request->boolean('is_active', true),
             'notify_on_hit' => $type === FirewallRule::TYPE_NOTIFY || $request->boolean('notify_on_hit', false),
-            'notification_cooldown_hours' => isset($validated['notification_cooldown_hours']) && $validated['notification_cooldown_hours'] !== ''
-                ? (int) $validated['notification_cooldown_hours']
+            'notification_cooldown_minutes' => isset($validated['notification_cooldown_minutes']) && $validated['notification_cooldown_minutes'] !== ''
+                ? (int) $validated['notification_cooldown_minutes']
                 : null,
             'priority' => (int) ($validated['priority'] ?? 0),
         ]);
@@ -108,7 +108,7 @@ class GroupController extends Controller
         return view('firewall-gui::groups.show', [
             'group' => $group,
             'rules' => $rules,
-            'globalCooldownHours' => $this->firewall->getNotificationSettings()['cooldown_hours'] ?? 24,
+            'globalCooldownMinutes' => $this->firewall->getNotificationSettings()['cooldown_minutes'] ?? 60,
             'currentIp' => (string) $request->ip(),
         ]);
     }
@@ -121,7 +121,7 @@ class GroupController extends Controller
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
             'notify_on_hit' => ['nullable', 'boolean'],
-            'notification_cooldown_hours' => ['nullable', 'integer', 'min:1', 'max:8760'],
+            'notification_cooldown_minutes' => ['nullable', 'integer', 'min:1', 'max:525600'],
             'priority' => ['nullable', 'integer'],
         ]);
 
@@ -145,11 +145,11 @@ class GroupController extends Controller
             'description' => $validated['description'] ?? null,
             'is_active' => $isActive,
             'notify_on_hit' => $notifyOnHit,
-            'notification_cooldown_hours' => array_key_exists('notification_cooldown_hours', $validated)
-                ? (($validated['notification_cooldown_hours'] !== null && $validated['notification_cooldown_hours'] !== '')
-                    ? (int) $validated['notification_cooldown_hours']
+            'notification_cooldown_minutes' => array_key_exists('notification_cooldown_minutes', $validated)
+                ? (($validated['notification_cooldown_minutes'] !== null && $validated['notification_cooldown_minutes'] !== '')
+                    ? (int) $validated['notification_cooldown_minutes']
                     : null)
-                : $group->notification_cooldown_hours,
+                : $group->notification_cooldown_minutes,
             'priority' => (int) ($validated['priority'] ?? 0),
         ]);
 

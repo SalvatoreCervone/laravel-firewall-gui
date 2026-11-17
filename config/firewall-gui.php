@@ -103,7 +103,7 @@ return [
         'enabled' => env('FIREWALL_GUI_NOTIFY_ENABLED', true),
         'to' => env('FIREWALL_GUI_NOTIFY_TO', ''), // Comma-separated emails or array
         'queue' => env('FIREWALL_GUI_NOTIFY_QUEUE', null), // Optional queue name
-        'cooldown_hours' => env('FIREWALL_GUI_NOTIFY_COOLDOWN_HOURS', 24),
+        'cooldown_minutes' => env('FIREWALL_GUI_NOTIFY_COOLDOWN_MINUTES', 60),
         'on_unmatched_block' => env('FIREWALL_GUI_NOTIFY_ON_UNMATCHED_BLOCK', true),
         'log_access' => true,
     ],
