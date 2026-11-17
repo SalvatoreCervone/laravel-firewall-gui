@@ -6,6 +6,7 @@ use Closure;
 use FirewallGui\LaravelFirewallGui\Mail\FirewallAccessNotification;
 use FirewallGui\LaravelFirewallGui\Models\FirewallGroup;
 use FirewallGui\LaravelFirewallGui\Models\FirewallLog;
+use FirewallGui\LaravelFirewallGui\Models\FirewallNotificationLog;
 use FirewallGui\LaravelFirewallGui\Models\FirewallRule;
 use FirewallGui\LaravelFirewallGui\Models\FirewallSetting;
 use FirewallGui\LaravelFirewallGui\Support\FirewallDecision;
@@ -595,15 +596,51 @@ class FirewallManager
             $mailable->fromName = $mailSettings['from_name'] ?: null;
         }
 
-        $customMailer = $this->applyCustomMailerConfig();
+        $recipientList = is_array($recipients) ? implode(', ', $recipients) : (string) $recipients;
+        $log = null;
 
-        if ($customMailer !== null) {
-            Mail::mailer($customMailer)->to($recipients)->queue($mailable);
+        try {
+            $ruleId = isset($mailable->matchedRule['id']) && (int) $mailable->matchedRule['id'] > 0
+                ? (int) $mailable->matchedRule['id']
+                : null;
+            $groupId = isset($mailable->matchedGroup['id']) && (int) $mailable->matchedGroup['id'] > 0
+                ? (int) $mailable->matchedGroup['id']
+                : null;
 
-            return;
+            $log = FirewallNotificationLog::query()->create([
+                'ip_address' => $mailable->ipAddress,
+                'decision_action' => $mailable->decisionAction,
+                'recipients' => $recipientList,
+                'subject' => $mailable->envelope()->subject,
+                'status' => FirewallNotificationLog::STATUS_QUEUED,
+                'matched_rule_id' => $ruleId,
+                'matched_group_id' => $groupId,
+                'created_at' => now(),
+            ]);
+
+            $mailable->notificationLogId = $log->id;
+        } catch (\Throwable) {
+            // Do not fail mail dispatch if notification log table is not yet migrated
         }
 
-        Mail::to($recipients)->queue($mailable);
+        $customMailer = $this->applyCustomMailerConfig();
+
+        try {
+            if ($customMailer !== null) {
+                Mail::mailer($customMailer)->to($recipients)->queue($mailable);
+            } else {
+                Mail::to($recipients)->queue($mailable);
+            }
+        } catch (\Throwable $e) {
+            if ($log !== null) {
+                $log->update([
+                    'status' => FirewallNotificationLog::STATUS_FAILED,
+                    'error_message' => $e->getMessage(),
+                ]);
+            }
+
+            throw $e;
+        }
     }
 
     /**

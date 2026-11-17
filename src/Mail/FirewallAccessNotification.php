@@ -2,6 +2,7 @@
 
 namespace FirewallGui\LaravelFirewallGui\Mail;
 
+use FirewallGui\LaravelFirewallGui\Models\FirewallNotificationLog;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -9,6 +10,7 @@ use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Throwable;
 
 class FirewallAccessNotification extends Mailable implements ShouldQueue
 {
@@ -32,7 +34,26 @@ class FirewallAccessNotification extends Mailable implements ShouldQueue
         public string $decisionAction = 'allowed',
         public ?string $fromAddress = null,
         public ?string $fromName = null,
+        public ?int $notificationLogId = null,
     ) {}
+
+    public function failed(Throwable $exception): void
+    {
+        if ($this->notificationLogId === null) {
+            return;
+        }
+
+        try {
+            FirewallNotificationLog::query()
+                ->whereKey($this->notificationLogId)
+                ->update([
+                    'status' => FirewallNotificationLog::STATUS_FAILED,
+                    'error_message' => $exception->getMessage(),
+                ]);
+        } catch (Throwable) {
+            // Ignore logging errors during failed job handling
+        }
+    }
 
     public function envelope(): Envelope
     {

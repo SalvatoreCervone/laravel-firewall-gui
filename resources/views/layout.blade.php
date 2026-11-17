@@ -912,6 +912,15 @@
                 <span>{{ __('firewall-gui::ui.nav.logs') }}</span>
             </a>
 
+            <a href="{{ route('firewall-gui.email-logs.index') }}"
+               class="nav-link {{ request()->routeIs('firewall-gui.email-logs.*') ? 'is-active' : '' }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <span>{{ __('firewall-gui::ui.nav.email_logs') }}</span>
+            </a>
+
             <a href="{{ route('firewall-gui.settings.index') }}"
                class="nav-link {{ request()->routeIs('firewall-gui.settings.*') ? 'is-active' : '' }}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">

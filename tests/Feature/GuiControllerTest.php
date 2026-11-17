@@ -586,4 +586,66 @@ class GuiControllerTest extends TestCase
         $this->assertTrue($fresh->is_active);
         $this->assertFalse($fresh->notify_on_hit);
     }
+
+    public function test_email_logs_page_records_and_displays_queued_emails_with_recipients(): void
+    {
+        Mail::fake();
+
+        $this->post('/firewall/settings/test-email', [
+            'test_email' => 'audit@example.com',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('firewall_notification_logs', [
+            'recipients' => 'audit@example.com',
+            'status' => 'queued',
+        ]);
+
+        $log = \FirewallGui\LaravelFirewallGui\Models\FirewallNotificationLog::query()->firstOrFail();
+
+        // Simulate job failure in queue/Horizon -> marked failed with error message
+        $mailable = new FirewallAccessNotification(
+            ipAddress: '127.0.0.1',
+            method: 'GET',
+            path: '/',
+            userAgent: null,
+            accessedAt: now()->toDateTimeString(),
+            matchedRule: ['id' => 0, 'value' => '127.0.0.1'],
+            notificationLogId: $log->id,
+        );
+        $mailable->failed(new \RuntimeException('SMTP connection timed out'));
+
+        $this->assertDatabaseHas('firewall_notification_logs', [
+            'id' => $log->id,
+            'status' => 'failed',
+            'error_message' => 'SMTP connection timed out',
+        ]);
+
+        $this->get('/firewall/email-logs')
+            ->assertOk()
+            ->assertSee('audit@example.com')
+            ->assertSee('Failed')
+            ->assertSee('SMTP connection timed out');
+
+        // Simulate MessageSent event -> marked sent
+        \Illuminate\Support\Facades\Event::dispatch(new \Illuminate\Mail\Events\MessageSent(
+            new \Illuminate\Mail\SentMessage(new \Symfony\Component\Mailer\SentMessage(
+                (new \Symfony\Component\Mime\Email())->from('from@example.com')->to('audit@example.com')->text('ok'),
+                new \Symfony\Component\Mailer\Envelope(
+                    new \Symfony\Component\Mime\Address('from@example.com'),
+                    [new \Symfony\Component\Mime\Address('audit@example.com')]
+                )
+            )),
+            ['notificationLogId' => $log->id]
+        ));
+
+        $this->assertSame('sent', $log->fresh()->status);
+        $this->assertNotNull($log->fresh()->sent_at);
+
+        $this->get('/firewall/email-logs?recipient=audit@example.com')
+            ->assertOk()
+            ->assertSee('audit@example.com');
+
+        $this->delete('/firewall/email-logs')->assertRedirect();
+        $this->assertDatabaseCount('firewall_notification_logs', 0);
+    }
 }

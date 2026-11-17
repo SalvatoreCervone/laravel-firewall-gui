@@ -1,6 +1,7 @@
 <?php
 
 use FirewallGui\LaravelFirewallGui\Http\Controllers\DashboardController;
+use FirewallGui\LaravelFirewallGui\Http\Controllers\EmailLogController;
 use FirewallGui\LaravelFirewallGui\Http\Controllers\GroupController;
 use FirewallGui\LaravelFirewallGui\Http\Controllers\LogController;
 use FirewallGui\LaravelFirewallGui\Http\Controllers\RuleController;
@@ -37,6 +38,9 @@ Route::group([
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
     Route::post('/logs/{log}/allow', [LogController::class, 'allowIp'])->name('logs.allow');
     Route::delete('/logs', [LogController::class, 'clear'])->name('logs.clear');
+
+    Route::get('/email-logs', [EmailLogController::class, 'index'])->name('email-logs.index');
+    Route::delete('/email-logs', [EmailLogController::class, 'clear'])->name('email-logs.clear');
 
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
