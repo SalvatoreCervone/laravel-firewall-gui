@@ -20,6 +20,7 @@
                 <select id="edit-rule-type" name="type" required>
                     <option value="blacklist">{{ __('firewall-gui::ui.rules.blacklist_block') }}</option>
                     <option value="whitelist">{{ __('firewall-gui::ui.rules.whitelist_allow') }}</option>
+                    <option value="notify">{{ __('firewall-gui::ui.common.notify_only') }}</option>
                 </select>
             </div>
 
