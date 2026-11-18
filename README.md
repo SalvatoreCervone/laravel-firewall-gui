@@ -62,7 +62,25 @@ php artisan vendor:publish --tag=firewall-gui-migrations
 
 ## Protecting Routes with the Middleware
 
-Apply the `firewall` middleware alias to routes, route groups, or globally in `bootstrap/app.php`:
+### Global Protection (High Priority, No Route Changes)
+
+To protect your entire application automatically without modifying individual routes, prepend [`FirewallMiddleware`](src/Http/Middleware/FirewallMiddleware.php) in `bootstrap/app.php`. Prepending places it at the top of the global middleware stack so it executes **before** other middleware (sessions, auth, controllers, etc.):
+
+```php
+// bootstrap/app.php
+use FirewallGui\LaravelFirewallGui\Http\Middleware\FirewallMiddleware;
+use Illuminate\Foundation\Configuration\Middleware;
+
+->withMiddleware(function (Middleware $middleware) {
+    $middleware->prepend(FirewallMiddleware::class);
+})
+```
+
+By default (`'protect_with_firewall' => false` in `config/firewall-gui.php`), GUI routes (`/firewall/*`) are automatically excluded so you cannot accidentally lock yourself out of the panel.
+
+### Per-Route / Group Protection
+
+Alternatively, apply the `firewall` middleware alias to specific routes or route groups:
 
 ```php
 // routes/web.php
